@@ -12,26 +12,41 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Initialize Firebase Admin with credentials
-def initialize_firebase():
-    """Initialize Firebase with credentials from file or environment"""
+def get_firebase_credentials():
+    """Load Firebase credentials from file"""
     try:
-        cred_dict = settings.get_firebase_credentials()
+        if os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
+            with open(settings.FIREBASE_CREDENTIALS_PATH, 'r') as f:
+                creds = json.load(f)
+            logger.info(f"Firebase credentials loaded from {settings.FIREBASE_CREDENTIALS_PATH}")
+            return creds
+        else:
+            logger.error(f"Firebase credentials file not found: {settings.FIREBASE_CREDENTIALS_PATH}")
+            return None
+    except Exception as e:
+        logger.error(f"Error loading Firebase credentials: {str(e)}")
+        return None
+
+def initialize_firebase():
+    """Initialize Firebase with credentials from file"""
+    try:
+        cred_dict = get_firebase_credentials()
         if not cred_dict:
-            print("WARNING: No Firebase credentials found. Please set up credentials.")
+            logger.warning("No Firebase credentials found. Please set up credentials.")
             return None
             
         cred = credentials.Certificate(cred_dict)
         app = initialize_app(cred)
         return firestore.client()
     except Exception as e:
-        print(f"Error initializing Firebase: {str(e)}")
+        logger.error(f"Error initializing Firebase: {str(e)}")
         return None
 
 # Initialize Firestore client safely
 def get_firestore_client():
     """Get Firestore client, initializing if needed"""
     try:
-        cred_dict = settings.get_firebase_credentials()
+        cred_dict = get_firebase_credentials()
         if not cred_dict:
             logger.warning("No Firebase credentials found. Database operations will be disabled.")
             return None

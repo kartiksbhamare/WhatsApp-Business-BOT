@@ -46,4 +46,16 @@ google-calendar-credentials.json
 client_secret*.json
 
 # Firebase credentials
-firebase-key.json 
+firebase-key.json
+
+# Venom Bot specific files
+node_modules/
+venom.log
+tokens/
+.wwebjs_auth/
+session/
+.wwebjs_cache/
+
+# Logs
+*.log
+npm-debug.log* 

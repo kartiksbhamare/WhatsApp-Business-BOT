@@ -1,10 +1,54 @@
-from twilio.rest import Client
+import requests
 from datetime import datetime
+import logging
 import os
+
+logger = logging.getLogger(__name__)
+
+VENOM_SERVICE_URL = os.getenv('VENOM_SERVICE_URL', 'http://localhost:3000')
+
+def send_whatsapp_message(to_number: str, message: str) -> bool:
+    """
+    Send a WhatsApp message using Venom Bot service
+    
+    Args:
+        to_number: Recipient's phone number (with or without country code)
+        message: Message text to send
+        
+    Returns:
+        bool: True if message was sent successfully
+    """
+    try:
+        # Clean the phone number - remove any 'whatsapp:' prefix if present
+        phone_number = to_number.replace("whatsapp:", "").strip()
+        
+        # Make request to Venom Bot service
+        response = requests.post(
+            f"{VENOM_SERVICE_URL}/send-message",
+            json={
+                "to": phone_number,
+                "message": message
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            logger.info(f"Message sent successfully to {phone_number}")
+            return True
+        else:
+            logger.error(f"Failed to send message. Status: {response.status_code}, Response: {response.text}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error sending message: {str(e)}")
+        return False
+    except Exception as e:
+        logger.error(f"Error sending message: {str(e)}")
+        return False
 
 def send_confirmation(phone: str, barber: str, time_slot: str, service: str) -> bool:
     """
-    Send a WhatsApp confirmation message using Twilio
+    Send a WhatsApp confirmation message using Venom Bot
     
     Args:
         phone: Customer's phone number
@@ -16,12 +60,6 @@ def send_confirmation(phone: str, barber: str, time_slot: str, service: str) -> 
         bool: True if message was sent successfully
     """
     try:
-        # Initialize Twilio client
-        client = Client(
-            os.getenv('TWILIO_ACCOUNT_SID'),
-            os.getenv('TWILIO_AUTH_TOKEN')
-        )
-        
         # Format the time slot
         booking_time = datetime.fromisoformat(time_slot)
         formatted_time = booking_time.strftime("%I:%M %p on %B %d, %Y")
@@ -37,15 +75,25 @@ def send_confirmation(phone: str, barber: str, time_slot: str, service: str) -> 
             f"See you soon! Reply 'CANCEL' to cancel your appointment."
         )
         
-        # Send the message
-        message = client.messages.create(
-            body=message,
-            from_=f"whatsapp:{os.getenv('TWILIO_PHONE_NUMBER')}",
-            to=f"whatsapp:{phone}"
-        )
-        
-        return True
+        return send_whatsapp_message(phone, message)
         
     except Exception as e:
-        print(f"Error sending confirmation: {str(e)}")
+        logger.error(f"Error sending confirmation: {str(e)}")
+        return False
+
+def check_venom_service_health() -> bool:
+    """
+    Check if Venom Bot service is running and ready
+    
+    Returns:
+        bool: True if service is ready
+    """
+    try:
+        response = requests.get(f"{VENOM_SERVICE_URL}/health", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('status') == 'ready'
+        return False
+    except Exception as e:
+        logger.error(f"Error checking Venom service health: {str(e)}")
         return False 

@@ -1,0 +1,18 @@
+{
+  "name": "whatsapp-venom-service",
+  "version": "1.0.0",
+  "description": "Venom Bot service for WhatsApp messaging",
+  "main": "venom-service.js",
+  "scripts": {
+    "start": "node venom-service.js",
+    "dev": "nodemon venom-service.js"
+  },
+  "dependencies": {
+    "venom-bot": "^5.0.16",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+} 

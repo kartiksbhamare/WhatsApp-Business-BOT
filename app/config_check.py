@@ -1,49 +1,56 @@
-from app.config import get_settings
 import logging
+from app.config import get_settings
+from app.services.whatsapp import check_venom_service_health
 
 logger = logging.getLogger(__name__)
 
-def check_twilio_config():
-    """Check if Twilio configuration is properly set"""
+def check_venom_config():
+    """Check if Venom Bot service is available"""
     settings = get_settings()
     
-    # Check Twilio settings
-    twilio_sid = settings.TWILIO_ACCOUNT_SID
-    twilio_token = settings.TWILIO_AUTH_TOKEN
-    twilio_number = settings.TWILIO_PHONE_NUMBER
+    logger.info("Venom Bot Configuration:")
+    logger.info(f"Service URL: {settings.VENOM_SERVICE_URL}")
     
-    logger.info("Twilio Configuration:")
-    logger.info(f"Account SID: {'Set' if twilio_sid else 'NOT SET'}")
-    logger.info(f"Auth Token: {'Set' if twilio_token else 'NOT SET'}")
-    logger.info(f"Phone Number: {twilio_number if twilio_number else 'NOT SET'}")
+    # Check if Venom service is running
+    is_ready = check_venom_service_health()
+    logger.info(f"Service Status: {'Ready' if is_ready else 'Not Ready/Unreachable'}")
     
-    return all([twilio_sid, twilio_token, twilio_number])
+    return is_ready
 
 def check_firebase_config():
     """Check if Firebase configuration is properly set"""
     settings = get_settings()
     
-    # Check Firebase credentials
-    firebase_creds = settings.get_firebase_credentials()
-    
     logger.info("Firebase Configuration:")
-    if firebase_creds:
-        logger.info(f"Project ID: {firebase_creds.get('project_id', 'NOT FOUND')}")
-        logger.info(f"Client Email: {firebase_creds.get('client_email', 'NOT FOUND')}")
-    else:
-        logger.info("Firebase credentials NOT SET")
+    logger.info(f"Project ID: {'Set' if settings.FIREBASE_PROJECT_ID else 'NOT SET'}")
+    logger.info(f"Credentials Path: {settings.FIREBASE_CREDENTIALS_PATH}")
     
-    return bool(firebase_creds)
+    # Check if Firebase credentials file exists
+    import os
+    creds_exist = os.path.exists(settings.FIREBASE_CREDENTIALS_PATH)
+    logger.info(f"Credentials File Exists: {'Yes' if creds_exist else 'No'}")
+    
+    return all([settings.FIREBASE_PROJECT_ID, creds_exist])
 
 def run_config_check():
-    """Run all configuration checks"""
-    logger.info("Starting configuration check...")
+    """Run comprehensive configuration check"""
+    logger.info("=" * 50)
+    logger.info("CONFIGURATION CHECK")
+    logger.info("=" * 50)
     
-    twilio_ok = check_twilio_config()
+    venom_ok = check_venom_config()
     firebase_ok = check_firebase_config()
     
-    logger.info("\nConfiguration Check Results:")
-    logger.info(f"Twilio Config: {'OK' if twilio_ok else 'MISSING'}")
+    logger.info("=" * 50)
+    logger.info("SUMMARY")
+    logger.info("=" * 50)
+    logger.info(f"Venom Bot Service: {'OK' if venom_ok else 'ISSUE'}")
     logger.info(f"Firebase Config: {'OK' if firebase_ok else 'MISSING'}")
     
-    return all([twilio_ok, firebase_ok]) 
+    overall_status = firebase_ok  # Venom service might not be ready during startup
+    logger.info(f"Overall Status: {'READY' if overall_status else 'NEEDS ATTENTION'}")
+    
+    if not venom_ok:
+        logger.warning("⚠️ Venom Bot service is not ready. Make sure to start it with 'npm start' or 'node venom-service.js'")
+    
+    return overall_status 
