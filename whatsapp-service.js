@@ -138,7 +138,16 @@ async function initializeWhatsAppClient() {
             qrcode.generate(qr, { small: true });
             
             console.log('📝 QR Code is ready!');
-            console.log('🌐 You can also view the QR code at: https://your-app.railway.app/qr');
+            
+            // Show the actual Railway URL
+            const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || 'your-app.railway.app';
+            const protocol = railwayUrl.includes('localhost') ? 'http' : 'https';
+            const fullUrl = railwayUrl.startsWith('http') ? railwayUrl : `${protocol}://${railwayUrl}`;
+            
+            console.log('🌐 ========================================');
+            console.log('🌐 SCAN QR CODE AT THIS URL:');
+            console.log(`🌐 ${fullUrl}/qr`);
+            console.log('🌐 ========================================');
             console.log('⚠️ IMPORTANT: This QR code will expire in 45 seconds!');
         });
 
@@ -522,6 +531,17 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`ℹ️  Get info: http://localhost:${PORT}/info`);
     console.log(`📊 Status: http://localhost:${PORT}/status`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    
+    // Show the public Railway URL for QR code access
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || 'your-app.railway.app';
+    const protocol = railwayUrl.includes('localhost') ? 'http' : 'https';
+    const fullUrl = railwayUrl.startsWith('http') ? railwayUrl : `${protocol}://${railwayUrl}`;
+    
+    console.log('🌐 ========================================');
+    console.log('🌐 PUBLIC RAILWAY URL:');
+    console.log(`🌐 ${fullUrl}`);
+    console.log(`🌐 QR CODE PAGE: ${fullUrl}/qr`);
+    console.log('🌐 ========================================');
     
     // Initialize WhatsApp Web Client after server starts
     console.log('⏰ Waiting 5 seconds before initializing WhatsApp Client...');
