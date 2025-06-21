@@ -253,39 +253,64 @@ async def get_all_bookings():
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/send-message")
+async def send_message_proxy(request: Request):
+    """Proxy send message requests to WhatsApp service"""
+    try:
+        data = await request.json()
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
+        
+        logger.info(f"Proxying send message request: {data}")
+        
+        response = requests.post(
+            f"{whatsapp_url}/send-message",
+            json=data,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+    except Exception as e:
+        logger.error(f"Error proxying send message: {e}")
+        raise HTTPException(status_code=503, detail="WhatsApp service not available")
+
 @app.post("/webhook/whatsapp")
 async def whatsapp_webhook(request: Request):
     """Webhook endpoint for WhatsApp Web.js messages"""
     try:
-        logger.info("Received WhatsApp Web webhook request")
+        logger.info("🔔 Received WhatsApp Web webhook request")
         
         # Get JSON data from WhatsApp Web service
         data = await request.json()
-        logger.info(f"WhatsApp data: {data}")
+        logger.info(f"📨 WhatsApp data received: {data}")
         
         message = data.get("body", "").lower().strip()
         phone = data.get("from", "").replace("@c.us", "").replace("@g.us", "")
         
+        logger.info(f"📱 Processing message: '{message}' from phone: {phone}")
+        
         # Skip group messages
         if data.get("isGroupMsg", False) or "@g.us" in data.get("from", ""):
-            logger.info("Skipping group message")
+            logger.info("⏭️ Skipping group message")
             return {"reply": None}
         
         if not message or not phone:
-            logger.error("Missing message or phone in WhatsApp webhook")
+            logger.error("❌ Missing message or phone in WhatsApp webhook")
             return {"error": "Missing required data"}
             
-        logger.info(f"Processing message: '{message}' from phone: {phone}")
-        
         # Get session data
         session = get_session_data(phone)
-        logger.info(f"Session state: {session}")
+        logger.info(f"📊 Session state for {phone}: {session}")
         
         reply_message = ""
         
         try:
             # Handle message based on session state
             if message in ["hi", "hello", "start", "restart"]:
+                logger.info(f"🎯 Handling greeting message: {message}")
                 if message in ["restart", "start"]:
                     clear_session(phone)
                     session = get_session_data(phone)
@@ -294,6 +319,7 @@ async def whatsapp_webhook(request: Request):
                 reply_message = f"Welcome to our Salon! Here are our services:\n\n{service_list}\n\nPlease enter the number of the service you'd like to book."
             
             elif session["step"] == "service" and message.isdigit():
+                logger.info(f"🔢 Processing service selection: {message}")
                 service = get_service(message)
                 if service:
                     barbers = get_barbers_for_service(service.id)
@@ -310,6 +336,7 @@ async def whatsapp_webhook(request: Request):
                     reply_message = f"Invalid service number. Please choose from:\n\n{service_list}"
                 
             elif session["step"] == "barber" and message.isdigit():
+                logger.info(f"✂️ Processing barber selection: {message}")
                 try:
                     barbers = get_barbers_for_service(session["service"])
                     selected_barber = barbers[int(message) - 1]
@@ -331,6 +358,7 @@ async def whatsapp_webhook(request: Request):
                     clear_session(phone)
                 
             elif session["step"] == "time" and message.isdigit():
+                logger.info(f"⏰ Processing time selection: {message}")
                 try:
                     slots = get_available_slots(session["barber"])
                     selected_time = slots[int(message) - 1]
@@ -359,17 +387,18 @@ async def whatsapp_webhook(request: Request):
                     clear_session(phone)
             
             else:
+                logger.info(f"❓ Unrecognized message: {message}")
                 reply_message = "I don't understand. Please say 'hi' to start booking or 'restart' to start over."
             
-            logger.info(f"Sending reply: {reply_message}")
+            logger.info(f"📤 Sending reply: {reply_message}")
             return {"reply": reply_message}
             
         except Exception as e:
-            logger.error(f"Error processing message: {str(e)}")
+            logger.error(f"❌ Error processing message: {str(e)}")
             return {"reply": "Sorry, there was an error processing your message. Please try again."}
             
     except Exception as e:
-        logger.error(f"Error in WhatsApp webhook: {str(e)}")
+        logger.error(f"❌ Error in WhatsApp webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/qr", response_class=HTMLResponse)

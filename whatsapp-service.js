@@ -335,7 +335,16 @@ async function forwardMessageToBackend(message) {
 
         // Use localhost for internal communication in Railway
         const backendUrl = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
-        const response = await fetch(`${backendUrl}/webhook/whatsapp`, {
+        const webhookUrl = `${backendUrl}/webhook/whatsapp`;
+        
+        console.log('📤 Forwarding message to backend...');
+        console.log(`🔗 Backend URL: ${webhookUrl}`);
+        console.log(`📋 Message data:`, JSON.stringify(messageData, null, 2));
+
+        // Use node-fetch or built-in fetch (Node 18+)
+        const fetch = globalThis.fetch || require('node-fetch');
+        
+        const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -343,19 +352,31 @@ async function forwardMessageToBackend(message) {
             body: JSON.stringify(messageData),
         });
 
+        console.log(`📊 Backend response status: ${response.status}`);
+        
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`❌ Backend response error: ${response.status} - ${errorText}`);
+            throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
         }
 
         const result = await response.json();
-        console.log('✅ Message forwarded to backend:', result);
+        console.log('✅ Message forwarded to backend successfully:', result);
         
         // If backend returns a response message, send it
         if (result.reply) {
+            console.log(`📤 Sending reply to ${message.from}: ${result.reply}`);
             await sendMessage(message.from, result.reply);
+        } else {
+            console.log('ℹ️ No reply from backend');
         }
     } catch (error) {
         console.error('❌ Error forwarding message to backend:', error);
+        console.error('🔍 Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
     }
 }
 
