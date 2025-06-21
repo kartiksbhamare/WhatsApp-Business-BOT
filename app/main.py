@@ -81,13 +81,63 @@ async def startup_event():
 
 @app.get("/")
 async def root():
-    """Health check endpoint"""
+    """Root endpoint with basic info"""
     whatsapp_status = "ready" if check_whatsapp_service_health() else "not ready"
     return {
-        "status": "healthy", 
+        "service": "Smart WhatsApp Booking Bot",
+        "status": "running", 
         "message": "Smart WhatsApp Booking Bot is running",
-        "whatsapp_service": whatsapp_status
+        "whatsapp_service": whatsapp_status,
+        "timestamp": datetime.now().isoformat()
     }
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Railway deployment"""
+    try:
+        whatsapp_healthy = check_whatsapp_service_health()
+        
+        # Check database connection
+        db_healthy = True
+        try:
+            # Try to access Firebase
+            services = get_all_services()
+            db_healthy = True
+        except Exception as db_error:
+            logger.error(f"Database health check failed: {db_error}")
+            db_healthy = False
+        
+        overall_status = "healthy" if (whatsapp_healthy and db_healthy) else "degraded"
+        
+        health_data = {
+            "status": overall_status,
+            "timestamp": datetime.now().isoformat(),
+            "service": "Smart WhatsApp Booking Bot",
+            "version": "1.0.0",
+            "components": {
+                "whatsapp_service": "healthy" if whatsapp_healthy else "unhealthy",
+                "database": "healthy" if db_healthy else "unhealthy",
+                "api": "healthy"
+            }
+        }
+        
+        # Return 200 if overall healthy, 503 if degraded
+        status_code = 200 if overall_status == "healthy" else 503
+        
+        if status_code == 503:
+            raise HTTPException(status_code=503, detail=health_data)
+        
+        return health_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        raise HTTPException(status_code=503, detail={
+            "status": "unhealthy",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        })
 
 @app.get("/api/services")
 async def get_services():

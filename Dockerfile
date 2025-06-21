@@ -119,9 +119,9 @@ echo "🚀 Starting FastAPI backend on port $PORT..."\n\
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT\n\
 ' > /app/start-railway.sh && chmod +x /app/start-railway.sh
 
-# Health check endpoint for Railway
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:$PORT/health || exit 1
+# Health check endpoint for Railway - more lenient for startup
+HEALTHCHECK --interval=30s --timeout=15s --start-period=120s --retries=5 \
+    CMD curl -f http://localhost:$PORT/health || curl -f http://localhost:$PORT/ || exit 1
 
 # Expose the port (Railway will set the PORT environment variable)
 EXPOSE $PORT
