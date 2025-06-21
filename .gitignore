@@ -48,8 +48,9 @@ client_secret*.json
 # Firebase credentials
 firebase-key.json
 
-# Venom Bot specific files
+# WhatsApp Web.js specific files
 node_modules/
+whatsapp.log
 venom.log
 tokens/
 .wwebjs_auth/

@@ -46,19 +46,19 @@ source venv/bin/activate
 echo -e "${YELLOW}📦 Installing Python dependencies...${NC}"
 pip install -r requirements.txt
 
-# Start Venom Bot service in background
-echo -e "${BLUE}📱 Starting Venom Bot service...${NC}"
-nohup node venom-service.js > venom.log 2>&1 &
-VENOM_PID=$!
-echo "Venom Bot service started with PID: $VENOM_PID"
+# Start WhatsApp Web service in background
+echo -e "${BLUE}📱 Starting WhatsApp Web service...${NC}"
+nohup node whatsapp-service.js > whatsapp.log 2>&1 &
+WHATSAPP_PID=$!
+echo "WhatsApp Web service started with PID: $WHATSAPP_PID"
 
-# Wait a moment for Venom service to start
+# Wait a moment for WhatsApp service to start
 sleep 3
 
 # Start Python FastAPI application
 echo -e "${GREEN}🚀 Starting FastAPI application...${NC}"
 echo "================================================"
-echo "📱 Scan the QR code that appears in venom.log with your WhatsApp"
+echo "📱 Scan the QR code that appears in whatsapp.log with your WhatsApp"
 echo "🌐 FastAPI will be available at: http://localhost:8000"
 echo "📊 API Documentation: http://localhost:8000/docs"
 echo "================================================"
@@ -69,7 +69,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 # Cleanup function
 cleanup() {
     echo "🛑 Shutting down services..."
-    kill $VENOM_PID 2>/dev/null
+    kill $WHATSAPP_PID 2>/dev/null
     echo "✅ Services stopped"
     exit 0
 }
