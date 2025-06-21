@@ -250,6 +250,7 @@ async function initializeWhatsAppClient() {
             console.log('🎉 WhatsApp Web Client is ready to receive messages!');
             console.log(`🌍 Running on Railway cloud at port ${PORT}`);
             currentQRCode = null; // Clear QR code when ready
+            qrCodeGenerated = false; // Reset QR generation flag
             isReady = true;
             isInitializing = false;
             initializationAttempts = 0;
@@ -580,7 +581,75 @@ app.get('/qr-simple', (req, res) => {
 
 // QR Code web page - Simplified and reliable
 app.get('/qr', (req, res) => {
-    console.log('🌐 QR page requested - qrCodeGenerated:', qrCodeGenerated, 'currentQRCode exists:', !!currentQRCode);
+    console.log('🌐 QR page requested - qrCodeGenerated:', qrCodeGenerated, 'currentQRCode exists:', !!currentQRCode, 'isReady:', isReady);
+    
+    // If WhatsApp is already connected, show success page
+    if (isReady) {
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>✅ WhatsApp Connected!</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        text-align: center; 
+                        padding: 20px;
+                        background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+                        color: white;
+                        min-height: 100vh;
+                        margin: 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .container {
+                        background: white;
+                        color: #333;
+                        border-radius: 20px;
+                        padding: 40px;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                        max-width: 450px;
+                        width: 90%;
+                    }
+                    .success-icon {
+                        font-size: 64px;
+                        color: #25D366;
+                        margin-bottom: 20px;
+                    }
+                    .instructions {
+                        text-align: left;
+                        background: #e8f5e8;
+                        padding: 20px;
+                        border-radius: 10px;
+                        margin: 20px 0;
+                        border-left: 4px solid #25D366;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="success-icon">✅</div>
+                    <h1>WhatsApp Connected Successfully!</h1>
+                    <p>Your WhatsApp Business Bot is now active and ready to receive messages.</p>
+                    
+                    <div class="instructions">
+                        <h3>🎯 How to Use Your Bot:</h3>
+                        <div>1. <strong>Send "hi"</strong> to your WhatsApp number</div>
+                        <div>2. <strong>Choose a service</strong> from the menu</div>
+                        <div>3. <strong>Select a barber</strong> and time slot</div>
+                        <div>4. <strong>Confirm your booking</strong> ✨</div>
+                    </div>
+                    
+                    <p><strong>Status:</strong> 🟢 Online and Ready</p>
+                    <p><small>No need to scan QR code again - you're all set!</small></p>
+                </div>
+            </body>
+            </html>
+        `);
+        return;
+    }
     
     if (!qrCodeGenerated || !currentQRCode) {
         res.send(`
@@ -723,10 +792,6 @@ app.get('/qr', (req, res) => {
                         border-left: 4px solid #ffc107;
                         font-size: 14px;
                     }
-                    .title {
-                        color: #25D366;
-                        margin-bottom: 10px;
-                    }
                     .step {
                         margin: 8px 0;
                         font-size: 15px;
@@ -748,7 +813,7 @@ app.get('/qr', (req, res) => {
             </head>
             <body>
                 <div class="container">
-                    <h1 class="title">📱 WhatsApp QR Code</h1>
+                    <h1>📱 WhatsApp QR Code</h1>
                     
                     <div class="qr-container">
                         <img src="${url}" alt="WhatsApp QR Code" class="qr-code" />
