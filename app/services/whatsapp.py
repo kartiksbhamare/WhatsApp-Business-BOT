@@ -1,15 +1,13 @@
 import requests
 from datetime import datetime
 import logging
-import os
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-VENOM_SERVICE_URL = os.getenv('VENOM_SERVICE_URL', 'http://localhost:3000')
-
 def send_whatsapp_message(to_number: str, message: str) -> bool:
     """
-    Send a WhatsApp message using Venom Bot service
+    Send a WhatsApp message using WhatsApp Web service
     
     Args:
         to_number: Recipient's phone number (with or without country code)
@@ -19,14 +17,16 @@ def send_whatsapp_message(to_number: str, message: str) -> bool:
         bool: True if message was sent successfully
     """
     try:
+        settings = get_settings()
+        
         # Clean the phone number - remove any 'whatsapp:' prefix if present
         phone_number = to_number.replace("whatsapp:", "").strip()
         
-        # Make request to Venom Bot service
+        # Make request to WhatsApp Web service
         response = requests.post(
-            f"{VENOM_SERVICE_URL}/send-message",
+            f"{settings.WHATSAPP_SERVICE_URL}/send-message",
             json={
-                "to": phone_number,
+                "phone": phone_number,
                 "message": message
             },
             timeout=10
@@ -48,7 +48,7 @@ def send_whatsapp_message(to_number: str, message: str) -> bool:
 
 def send_confirmation(phone: str, barber: str, time_slot: str, service: str) -> bool:
     """
-    Send a WhatsApp confirmation message using Venom Bot
+    Send a WhatsApp confirmation message using WhatsApp Web service
     
     Args:
         phone: Customer's phone number
@@ -81,19 +81,20 @@ def send_confirmation(phone: str, barber: str, time_slot: str, service: str) -> 
         logger.error(f"Error sending confirmation: {str(e)}")
         return False
 
-def check_venom_service_health() -> bool:
+def check_whatsapp_service_health() -> bool:
     """
-    Check if Venom Bot service is running and ready
+    Check if WhatsApp Web service is running and ready
     
     Returns:
         bool: True if service is ready
     """
     try:
-        response = requests.get(f"{VENOM_SERVICE_URL}/health", timeout=5)
+        settings = get_settings()
+        response = requests.get(f"{settings.WHATSAPP_SERVICE_URL}/health", timeout=5)
         if response.status_code == 200:
             data = response.json()
-            return data.get('status') == 'ready'
+            return data.get('status') == 'healthy' and data.get('client_ready', False)
         return False
     except Exception as e:
-        logger.error(f"Error checking Venom service health: {str(e)}")
+        logger.error(f"Error checking WhatsApp Web service health: {str(e)}")
         return False 

@@ -1,18 +1,18 @@
 import logging
 from app.config import get_settings
-from app.services.whatsapp import check_venom_service_health
+from app.services.whatsapp import check_whatsapp_service_health
 
 logger = logging.getLogger(__name__)
 
-def check_venom_config():
-    """Check if Venom Bot service is available"""
+def check_whatsapp_config():
+    """Check if WhatsApp Web service is available"""
     settings = get_settings()
     
-    logger.info("Venom Bot Configuration:")
-    logger.info(f"Service URL: {settings.VENOM_SERVICE_URL}")
+    logger.info("WhatsApp Web Service Configuration:")
+    logger.info(f"Service URL: {settings.WHATSAPP_SERVICE_URL}")
     
-    # Check if Venom service is running
-    is_ready = check_venom_service_health()
+    # Check if WhatsApp Web service is running
+    is_ready = check_whatsapp_service_health()
     logger.info(f"Service Status: {'Ready' if is_ready else 'Not Ready/Unreachable'}")
     
     return is_ready
@@ -38,19 +38,19 @@ def run_config_check():
     logger.info("CONFIGURATION CHECK")
     logger.info("=" * 50)
     
-    venom_ok = check_venom_config()
+    whatsapp_ok = check_whatsapp_config()
     firebase_ok = check_firebase_config()
     
     logger.info("=" * 50)
     logger.info("SUMMARY")
     logger.info("=" * 50)
-    logger.info(f"Venom Bot Service: {'OK' if venom_ok else 'ISSUE'}")
+    logger.info(f"WhatsApp Web Service: {'OK' if whatsapp_ok else 'ISSUE'}")
     logger.info(f"Firebase Config: {'OK' if firebase_ok else 'MISSING'}")
     
-    overall_status = firebase_ok  # Venom service might not be ready during startup
+    overall_status = firebase_ok  # WhatsApp service might not be ready during startup
     logger.info(f"Overall Status: {'READY' if overall_status else 'NEEDS ATTENTION'}")
     
-    if not venom_ok:
-        logger.warning("⚠️ Venom Bot service is not ready. Make sure to start it with 'npm start' or 'node venom-service.js'")
+    if not whatsapp_ok:
+        logger.warning("⚠️ WhatsApp Web service is not ready. Make sure to start it with 'npm start' or 'node whatsapp-service.js'")
     
     return overall_status 

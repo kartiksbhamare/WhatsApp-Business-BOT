@@ -16,7 +16,7 @@ from app.services.firestore import (
     get_available_slots,
     book_slot
 )
-from app.services.whatsapp import send_whatsapp_message, check_venom_service_health
+from app.services.whatsapp import send_whatsapp_message, check_whatsapp_service_health
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ settings = get_settings()
 
 app = FastAPI(
     title="Smart WhatsApp Booking Bot",
-    description="A WhatsApp-based booking system for salons using FastAPI, Firebase and Venom Bot",
+    description="A WhatsApp-based booking system for salons using FastAPI, Firebase and WhatsApp Web.js",
     version="1.0.0"
 )
 
@@ -69,12 +69,12 @@ async def startup_event():
     else:
         logger.info("Configuration check passed.")
     
-    # Check Venom service
-    logger.info("Checking Venom Bot service...")
-    if check_venom_service_health():
-        logger.info("✅ Venom Bot service is ready!")
+    # Check WhatsApp Web service
+    logger.info("Checking WhatsApp Web service...")
+    if check_whatsapp_service_health():
+        logger.info("✅ WhatsApp Web service is ready!")
     else:
-        logger.warning("⚠️ Venom Bot service is not ready. Please make sure to start the Venom Bot service first.")
+        logger.warning("⚠️ WhatsApp Web service is not ready. Please make sure to start the WhatsApp Web service first.")
     
     # Initialize database
     init_default_data()
@@ -82,11 +82,11 @@ async def startup_event():
 @app.get("/")
 async def root():
     """Health check endpoint"""
-    venom_status = "ready" if check_venom_service_health() else "not ready"
+    whatsapp_status = "ready" if check_whatsapp_service_health() else "not ready"
     return {
         "status": "healthy", 
         "message": "Smart WhatsApp Booking Bot is running",
-        "venom_service": venom_status
+        "whatsapp_service": whatsapp_status
     }
 
 @app.get("/api/services")
@@ -204,120 +204,6 @@ async def get_all_bookings():
         return {"bookings": bookings, "total": len(bookings)}
     except Exception as e:
         return {"error": str(e)}
-
-@app.post("/webhook/venom")
-async def venom_webhook(request: Request):
-    """Webhook endpoint for Venom Bot messages"""
-    try:
-        logger.info("Received Venom webhook request")
-        
-        # Get JSON data from Venom Bot service
-        data = await request.json()
-        logger.info(f"Venom data: {data}")
-        
-        message = data.get("body", "").lower().strip()
-        phone = data.get("from", "").replace("@c.us", "")
-        
-        if not message or not phone:
-            logger.error("Missing message or phone in Venom webhook")
-            return {"error": "Missing required data"}
-            
-        logger.info(f"Processing message: '{message}' from phone: {phone}")
-        
-        # Get session data
-        session = get_session_data(phone)
-        logger.info(f"Session state: {session}")
-        
-        reply_message = ""
-        
-        try:
-            # Handle message based on session state
-            if message in ["hi", "hello", "start", "restart"]:
-                if message in ["restart", "start"]:
-                    clear_session(phone)
-                    session = get_session_data(phone)
-                services = get_all_services()
-                service_list = "\n".join([f"{s.id}. {s.name} (${s.price}, {s.duration} mins)" for s in services])
-                reply_message = f"Welcome to our Salon! Here are our services:\n\n{service_list}\n\nPlease enter the number of the service you'd like to book."
-            
-            elif session["step"] == "service" and message.isdigit():
-                service = get_service(message)
-                if service:
-                    barbers = get_barbers_for_service(service.id)
-                    if not barbers:
-                        reply_message = "Sorry, no barbers are currently available for this service."
-                    else:
-                        session["service"] = service.id
-                        session["step"] = "barber"
-                        barber_list = "\n".join([f"{i+1}. {b.name}" for i, b in enumerate(barbers)])
-                        reply_message = f"You've selected {service.name}. Please choose your preferred stylist:\n\n{barber_list}"
-                else:
-                    services = get_all_services()
-                    service_list = "\n".join([f"{s.id}. {s.name} (${s.price}, {s.duration} mins)" for s in services])
-                    reply_message = f"Invalid service number. Please choose from:\n\n{service_list}"
-                
-            elif session["step"] == "barber" and message.isdigit():
-                try:
-                    barbers = get_barbers_for_service(session["service"])
-                    selected_barber = barbers[int(message) - 1]
-                    session["barber"] = selected_barber.name
-                    session["step"] = "time"
-                    
-                    slots = get_available_slots(selected_barber.name)
-                    if not slots:
-                        reply_message = "Sorry, no available slots found for today. Please try again tomorrow."
-                        clear_session(phone)
-                    else:
-                        slot_list = "\n".join([f"{i+1}. {slot}" for i, slot in enumerate(slots)])
-                        reply_message = f"Please choose your preferred time:\n\n{slot_list}"
-                except (IndexError, ValueError):
-                    reply_message = "Invalid selection. Please choose a valid number."
-                except Exception as e:
-                    logger.error(f"Error getting slots: {str(e)}")
-                    reply_message = "Sorry, there was an error. Please try again."
-                    clear_session(phone)
-                
-            elif session["step"] == "time" and message.isdigit():
-                try:
-                    slots = get_available_slots(session["barber"])
-                    selected_time = slots[int(message) - 1]
-                    
-                    service = get_service(session["service"])
-                    booking_data = {
-                        "service_id": service.id,
-                        "service_name": service.name,
-                        "barber_name": session["barber"],
-                        "time_slot": selected_time,
-                        "phone": phone,
-                        "date": datetime.now().strftime("%Y-%m-%d")
-                    }
-                    
-                    result = book_slot(booking_data)
-                    if result["status"] == "success":
-                        reply_message = f"✨ Booking Confirmed! ✨\n\nService: {service.name}\nBarber: {session['barber']}\nTime: {selected_time}\n\nSee you soon!"
-                    else:
-                        reply_message = "Sorry, that slot is no longer available. Please try again."
-                    clear_session(phone)
-                except (IndexError, ValueError):
-                    reply_message = "Invalid selection. Please choose a valid number."
-                except Exception as e:
-                    logger.error(f"Error booking slot: {str(e)}")
-                    reply_message = "Sorry, there was an error. Please try again."
-                    clear_session(phone)
-            
-            else:
-                reply_message = "I don't understand. Please say 'hi' to start booking or 'restart' to start over."
-            
-            logger.info(f"Sending reply: {reply_message}")
-            return {"reply": reply_message}
-            
-        except Exception as e:
-            logger.error(f"Error processing message: {str(e)}")
-            return {"reply": "Sorry, there was an error processing your message. Please try again."}
-            
-    except Exception as e:
-        logger.error(f"Error in Venom webhook: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/webhook/whatsapp")
 async def whatsapp_webhook(request: Request):

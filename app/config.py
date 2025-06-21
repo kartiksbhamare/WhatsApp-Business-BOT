@@ -14,8 +14,8 @@ class Settings(BaseSettings):
         case_sensitive=True
     )
     
-    # Venom Bot Settings
-    VENOM_SERVICE_URL: str = "http://localhost:3000"
+    # WhatsApp Web Service Settings
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"
     
     # Firebase Settings
     FIREBASE_PROJECT_ID: str
@@ -55,8 +55,8 @@ class Settings(BaseSettings):
         if not os.path.exists(self.FIREBASE_CREDENTIALS_PATH):
             logger.warning(f"Firebase credentials file not found: {self.FIREBASE_CREDENTIALS_PATH}")
         
-        # Venom Bot validation
-        logger.info(f"VENOM_SERVICE_URL: {self.VENOM_SERVICE_URL}")
+        # WhatsApp Web Service validation
+        logger.info(f"WHATSAPP_SERVICE_URL: {self.WHATSAPP_SERVICE_URL}")
         
         # Google Calendar validation (optional)
         if self.GOOGLE_CALENDAR_CREDENTIALS_PATH:
