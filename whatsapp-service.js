@@ -156,9 +156,9 @@ async function initializeWhatsAppClient() {
                 });
                 
                 console.log('\n📋 SCAN THIS QR CODE WITH YOUR WHATSAPP MOBILE APP:');
-                console.log('=' * 60);
+                console.log('='.repeat(60));
                 console.log(qrString);
-                console.log('=' * 60);
+                console.log('='.repeat(60));
                 
                 // Also generate a smaller version for better visibility
                 const qrStringSmall = await qrcode.toString(qr, {
@@ -168,9 +168,9 @@ async function initializeWhatsAppClient() {
                 });
                 
                 console.log('\n📱 SMALLER VERSION (if above is too big):');
-                console.log('-' * 40);
+                console.log('-'.repeat(40));
                 console.log(qrStringSmall);
-                console.log('-' * 40);
+                console.log('-'.repeat(40));
                 
                 console.log('\n🎯 INSTRUCTIONS:');
                 console.log('1. Open WhatsApp on your mobile phone');
