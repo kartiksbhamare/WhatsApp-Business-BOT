@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Use Railway's PORT environment variable
 
 // Store the client instance
 let client = null;
@@ -29,13 +29,14 @@ async function initializeWhatsAppClient() {
     console.log(`🚀 Starting WhatsApp Web Client... (Attempt ${initializationAttempts})`);
 
     try {
-        // Create WhatsApp client with LocalAuth
+        // Create WhatsApp client with LocalAuth and cloud-optimized settings
         client = new Client({
             authStrategy: new LocalAuth({
                 clientId: "booking-bot"
             }),
             puppeteer: {
                 headless: true,
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -52,7 +53,14 @@ async function initializeWhatsAppClient() {
                     '--disable-background-timer-throttling',
                     '--disable-renderer-backgrounding',
                     '--disable-backgrounding-occluded-windows',
-                    '--disable-ipc-flooding-protection'
+                    '--disable-ipc-flooding-protection',
+                    '--disable-features=TranslateUI',
+                    '--disable-features=BlinkGenPropertyTrees',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--single-process', // Important for Railway deployment
+                    '--memory-pressure-off',
+                    '--max_old_space_size=4096'
                 ]
             }
         });
@@ -60,8 +68,10 @@ async function initializeWhatsAppClient() {
         // QR Code generation
         client.on('qr', (qr) => {
             console.log('📱 QR Code received, scan with your WhatsApp app:');
+            console.log('🔗 QR Code for WhatsApp Web authentication:');
             qrcode.generate(qr, { small: true });
-            console.log('🔗 You can also scan this QR code in the terminal above');
+            console.log('📝 Copy this QR code and scan it with your phone.');
+            console.log('⚠️ IMPORTANT: This QR code will expire in 45 seconds!');
         });
 
         // Authentication successful
@@ -84,6 +94,7 @@ async function initializeWhatsAppClient() {
         client.on('ready', () => {
             console.log('✅ WhatsApp Web Client initialized successfully!');
             console.log('🎉 WhatsApp Web Client is ready to receive messages!');
+            console.log(`🌍 Running on Railway cloud at port ${PORT}`);
             isReady = true;
             isInitializing = false;
             initializationAttempts = 0;
@@ -158,7 +169,9 @@ async function forwardMessageToBackend(message) {
             author: message.author || message.from
         };
 
-        const response = await fetch('http://localhost:8000/webhook/whatsapp', {
+        // Use localhost for internal communication in Railway
+        const backendUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+        const response = await fetch(`${backendUrl}/webhook/whatsapp`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -212,7 +225,9 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         service: 'WhatsApp Web Service',
         client_ready: isReady,
-        initializing: isInitializing
+        initializing: isInitializing,
+        environment: process.env.NODE_ENV || 'development',
+        platform: 'Railway Cloud'
     };
     
     console.log('🏥 Health check requested:', status);
@@ -323,12 +338,14 @@ process.on('SIGTERM', async () => {
 });
 
 // Start the server
-app.listen(PORT, () => {
-    console.log('🌐 WhatsApp Web service running on port', PORT);
-    console.log('📋 Health check: http://localhost:3000/health');
-    console.log('📤 Send message: POST http://localhost:3000/send-message');
-    console.log('ℹ️  Get info: http://localhost:3000/info');
-    console.log('📊 Status: http://localhost:3000/status');
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🌐 WhatsApp Web service running on Railway cloud`);
+    console.log(`🔗 Port: ${PORT}`);
+    console.log(`📋 Health check: http://localhost:${PORT}/health`);
+    console.log(`📤 Send message: POST http://localhost:${PORT}/send-message`);
+    console.log(`ℹ️  Get info: http://localhost:${PORT}/info`);
+    console.log(`📊 Status: http://localhost:${PORT}/status`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     
     // Initialize WhatsApp Web Client
     initializeWhatsAppClient();
