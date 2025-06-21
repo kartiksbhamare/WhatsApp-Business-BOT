@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxfixes3 \
-    libxkbcomposite0 \
+    libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
     dbus \
