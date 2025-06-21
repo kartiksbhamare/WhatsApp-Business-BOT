@@ -334,7 +334,7 @@ async function forwardMessageToBackend(message) {
         };
 
         // Use localhost for internal communication in Railway
-        const backendUrl = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
+        const backendUrl = process.env.BACKEND_URL || `http://127.0.0.1:${BACKEND_PORT}`;
         const webhookUrl = `${backendUrl}/webhook/whatsapp`;
         
         console.log('📤 Forwarding message to backend...');
