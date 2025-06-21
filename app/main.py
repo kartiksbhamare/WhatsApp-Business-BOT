@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Request, HTTPException, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, FileResponse
 from typing import Dict, Optional
 from datetime import datetime
 import json
 import logging
 import re
+import requests
+import os
 
 from app.services.firestore import (
     init_default_data,
@@ -368,6 +371,65 @@ async def whatsapp_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error in WhatsApp webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/qr", response_class=HTMLResponse)
+async def qr_code_page():
+    """Proxy QR code page from WhatsApp service"""
+    try:
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
+        response = requests.get(f"{whatsapp_url}/qr", timeout=10)
+        return HTMLResponse(content=response.text, status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error proxying QR page: {e}")
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>QR Code - Service Starting</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1>🔄 WhatsApp Service Starting...</h1>
+                <p>The WhatsApp service is still initializing.</p>
+                <p>Please wait a moment and refresh this page.</p>
+                <button onclick="window.location.reload()">🔄 Refresh</button>
+                <script>setTimeout(() => window.location.reload(), 10000);</script>
+            </body>
+            </html>
+        """, status_code=503)
+
+@app.get("/qr-image")
+async def qr_code_image():
+    """Proxy QR code image from WhatsApp service"""
+    try:
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
+        response = requests.get(f"{whatsapp_url}/qr-image", timeout=10)
+        
+        if response.status_code == 200:
+            return Response(content=response.content, media_type="image/png")
+        else:
+            raise HTTPException(status_code=404, detail="QR code image not available")
+    except Exception as e:
+        logger.error(f"Error proxying QR image: {e}")
+        raise HTTPException(status_code=503, detail="WhatsApp service not available")
+
+@app.get("/qr-simple", response_class=HTMLResponse)
+async def qr_code_simple():
+    """Proxy simple QR code page from WhatsApp service"""
+    try:
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
+        response = requests.get(f"{whatsapp_url}/qr-simple", timeout=10)
+        return HTMLResponse(content=response.text, status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error proxying simple QR page: {e}")
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>QR Code Not Ready</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1>⏳ QR Code Not Ready</h1>
+                <p>WhatsApp service is starting up...</p>
+                <button onclick="window.location.reload()">Refresh</button>
+            </body>
+            </html>
+        """, status_code=503)
 
 if __name__ == "__main__":
     import uvicorn
