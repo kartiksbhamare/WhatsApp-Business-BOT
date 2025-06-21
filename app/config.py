@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # WhatsApp Web Service Settings - with backward compatibility
-    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # WhatsApp service runs on port 3000
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
     # Firebase Settings - made optional with defaults for Railway deployment
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     
     def _handle_backward_compatibility(self):
         """Handle backward compatibility for renamed environment variables"""
-        # If VENOM_SERVICE_URL is set but WHATSAPP_SERVICE_URL is not, use the old value
+        # If VENOM_SERVICE_URL is set but WHATSAPP_SERVICE_URL is default, use the old value
         if self.VENOM_SERVICE_URL and self.WHATSAPP_SERVICE_URL == "http://localhost:3000":
             self.WHATSAPP_SERVICE_URL = self.VENOM_SERVICE_URL
             logger.info("Using VENOM_SERVICE_URL for backward compatibility. Please update to WHATSAPP_SERVICE_URL")

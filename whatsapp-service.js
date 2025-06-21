@@ -4,7 +4,8 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Use Railway's PORT environment variable
+const PORT = process.env.PORT || 3000; // WhatsApp service port
+const BACKEND_PORT = process.env.BACKEND_PORT || 8080; // FastAPI backend port
 
 // Store the client instance
 let client = null;
@@ -237,7 +238,7 @@ async function forwardMessageToBackend(message) {
         };
 
         // Use localhost for internal communication in Railway
-        const backendUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+        const backendUrl = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
         const response = await fetch(`${backendUrl}/webhook/whatsapp`, {
             method: 'POST',
             headers: {
