@@ -92,29 +92,22 @@ echo "✅ Virtual display started"\n\
 export WHATSAPP_PORT=3000\n\
 export WHATSAPP_SERVICE_URL="http://localhost:3000"\n\
 \n\
-# Start WhatsApp Web service on port 3000 in background\n\
+# Start WhatsApp Web service on port 3000 in background (allow it to fail)\n\
 echo "📱 Starting WhatsApp Web service on port 3000..."\n\
-PORT=3000 node whatsapp-service.js &\n\
+(\n\
+  PORT=3000 node whatsapp-service.js || {\n\
+    echo "❌ WhatsApp service failed to start, but continuing with FastAPI..."\n\
+    exit 0\n\
+  }\n\
+) &\n\
 WHATSAPP_PID=$!\n\
 echo "WhatsApp Web service started with PID: $WHATSAPP_PID"\n\
 \n\
-# Wait for WhatsApp service to initialize\n\
+# Wait for WhatsApp service to initialize (but dont wait too long)\n\
 echo "⏰ Waiting for WhatsApp service to initialize..."\n\
-sleep 10\n\
+sleep 5\n\
 \n\
-# Verify WhatsApp service is running\n\
-echo "🔍 Checking WhatsApp service health..."\n\
-for i in {1..5}; do\n\
-    if curl -f http://localhost:3000/health > /dev/null 2>&1; then\n\
-        echo "✅ WhatsApp service is healthy"\n\
-        break\n\
-    else\n\
-        echo "⏳ Waiting for WhatsApp service... (attempt $i/5)"\n\
-        sleep 3\n\
-    fi\n\
-done\n\
-\n\
-# Start FastAPI application on Railway PORT\n\
+# Start FastAPI application on Railway PORT (this MUST work)\n\
 echo "🚀 Starting FastAPI backend on port $PORT..."\n\
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT\n\
 ' > /app/start-railway.sh && chmod +x /app/start-railway.sh
