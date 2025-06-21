@@ -1,5 +1,6 @@
 [build]
 builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 healthcheckPath = "/health"
@@ -8,4 +9,8 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
 [environments.production]
-RAILWAY_DOCKERFILE_PATH = "Dockerfile" 
+RAILWAY_DOCKERFILE_PATH = "Dockerfile"
+
+# Force Railway to use Dockerfile instead of Nixpacks
+[build.env]
+NIXPACKS_NO_DEFAULT_CACHE_DIRECTORIES = "1" 

@@ -5,7 +5,12 @@
   "main": "whatsapp-service.js",
   "scripts": {
     "start": "node whatsapp-service.js",
-    "dev": "nodemon whatsapp-service.js"
+    "dev": "nodemon whatsapp-service.js",
+    "railway": "/app/start-railway.sh"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "dependencies": {
     "whatsapp-web.js": "^1.23.0",
