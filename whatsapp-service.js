@@ -150,36 +150,68 @@ async function initializeWhatsAppClient() {
                 
                 console.log('✅ QR Code PNG saved as: whatsapp_qr_code.png');
                 
-                // Generate QR code as UTF-8 terminal output (better for logs)
-                const qrString = await qrcode.toString(qr, {
-                    type: 'utf8',
-                    width: 40,
-                    margin: 1
-                });
+                // Try multiple terminal rendering methods
+                let qrDisplayed = false;
                 
-                console.log('\n📋 QR CODE FOR WHATSAPP (scan from your phone):');
-                console.log('='.repeat(60));
-                console.log(qrString);
-                console.log('='.repeat(60));
+                // Method 1: Try terminal renderer (most reliable)
+                try {
+                    const qrTerminal = await qrcode.toString(qr, {
+                        type: 'terminal',
+                        width: 35,
+                        small: true
+                    });
+                    
+                    console.log('\n📋 QR CODE FOR WHATSAPP (scan from your phone):');
+                    console.log('='.repeat(60));
+                    console.log(qrTerminal);
+                    console.log('='.repeat(60));
+                    qrDisplayed = true;
+                    
+                } catch (terminalError) {
+                    console.log('⚠️ Terminal QR display failed, trying alternative...');
+                    
+                    // Method 2: Try smaller terminal version
+                    try {
+                        const qrSmall = await qrcode.toString(qr, {
+                            type: 'terminal',
+                            width: 25
+                        });
+                        
+                        console.log('\n📋 QR CODE (SMALLER VERSION):');
+                        console.log('-'.repeat(40));
+                        console.log(qrSmall);
+                        console.log('-'.repeat(40));
+                        qrDisplayed = true;
+                        
+                    } catch (smallError) {
+                        console.log('⚠️ Small terminal QR also failed, showing web instructions only...');
+                    }
+                }
                 
-                console.log('\n🌐 BETTER OPTION - SCAN FROM WEB:');
+                // Always show web instructions (most reliable method)
+                console.log('\n🌐 BEST OPTION - SCAN FROM WEB BROWSER:');
                 console.log('🔗 Visit this URL in your browser:');
                 console.log(`🌐 https://whatsapp-business-bot-production.up.railway.app/qr`);
                 console.log('📱 Then scan the QR code from your browser with WhatsApp');
                 
-                console.log('\n🎯 INSTRUCTIONS:');
-                console.log('1. Open the URL above in your browser');
-                console.log('2. Open WhatsApp on your mobile phone');
-                console.log('3. Go to Settings > Linked Devices');
-                console.log('4. Tap "Link a Device"');
-                console.log('5. Scan the QR code from your browser');
-                console.log('6. Wait for connection...\n');
+                console.log('\n🎯 STEP-BY-STEP INSTRUCTIONS:');
+                console.log('1. 🌐 Open the URL above in ANY web browser');
+                console.log('2. 📱 Open WhatsApp on your mobile phone');
+                console.log('3. ⚙️  Go to Settings > Linked Devices');
+                console.log('4. 📸 Tap "Link a Device"');
+                console.log('5. 🎯 Scan the QR code from your browser screen');
+                console.log('6. ⏳ Wait for connection...\n');
+                
+                if (!qrDisplayed) {
+                    console.log('⚠️ QR code display in logs failed - use web browser method above');
+                }
                 
                 // Store QR code data for web endpoint
                 currentQRCode = qr;
                 qrCodeGenerated = true;
                 
                 console.log('⚠️ QR Code expires in 45 seconds - act fast!');
+                console.log('🔄 If expired, the system will generate a new one automatically');
                 
             } catch (error) {
                 console.error('❌ Error generating QR code:', error);
@@ -187,6 +219,10 @@ async function initializeWhatsAppClient() {
                 // Store QR code data anyway for web endpoint
                 currentQRCode = qr;
                 qrCodeGenerated = true;
+                
+                console.log('\n🌐 QR CODE AVAILABLE VIA WEB ONLY:');
+                console.log('🔗 https://whatsapp-business-bot-production.up.railway.app/qr');
+                console.log('📱 Open this URL and scan the QR code with WhatsApp');
             }
         });
 
