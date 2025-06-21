@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     WHATSAPP_SERVICE_URL: str = "http://localhost:3000"
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
-    # Firebase Settings
-    FIREBASE_PROJECT_ID: str
+    # Firebase Settings - made optional with defaults for Railway deployment
+    FIREBASE_PROJECT_ID: str = "appointment-booking-4c50f"  # Default project ID
     FIREBASE_CREDENTIALS_PATH: str = "firebase-key.json"
     
     # Google Calendar Settings (optional)
@@ -54,32 +54,35 @@ class Settings(BaseSettings):
     
     def _validate_settings(self):
         """Validate required settings and log configuration"""
-        logger.info("Configuration loaded:")
-        logger.info(f"DEBUG: {self.DEBUG}")
-        logger.info(f"LOG_LEVEL: {self.LOG_LEVEL}")
+        logger.info("✅ Smart WhatsApp Booking Bot Configuration loaded:")
+        logger.info(f"🔧 DEBUG: {self.DEBUG}")
+        logger.info(f"📊 LOG_LEVEL: {self.LOG_LEVEL}")
         
         # Firebase validation
-        logger.info(f"FIREBASE_PROJECT_ID: {self.FIREBASE_PROJECT_ID if self.FIREBASE_PROJECT_ID else 'Not set'}")
-        logger.info(f"FIREBASE_CREDENTIALS_PATH: {self.FIREBASE_CREDENTIALS_PATH}")
+        logger.info(f"🔥 FIREBASE_PROJECT_ID: {self.FIREBASE_PROJECT_ID}")
+        logger.info(f"📄 FIREBASE_CREDENTIALS_PATH: {self.FIREBASE_CREDENTIALS_PATH}")
         
         if not os.path.exists(self.FIREBASE_CREDENTIALS_PATH):
-            logger.warning(f"Firebase credentials file not found: {self.FIREBASE_CREDENTIALS_PATH}")
+            logger.warning(f"⚠️ Firebase credentials file not found: {self.FIREBASE_CREDENTIALS_PATH}")
+            logger.info("💡 This is normal during Railway deployment - credentials will be created from environment variable")
+        else:
+            logger.info("✅ Firebase credentials file found")
         
         # WhatsApp Web Service validation
-        logger.info(f"WHATSAPP_SERVICE_URL: {self.WHATSAPP_SERVICE_URL}")
+        logger.info(f"📱 WHATSAPP_SERVICE_URL: {self.WHATSAPP_SERVICE_URL}")
         
         # Google Calendar validation (optional)
         if self.GOOGLE_CALENDAR_CREDENTIALS_PATH:
-            logger.info(f"GOOGLE_CALENDAR_CREDENTIALS_PATH: {self.GOOGLE_CALENDAR_CREDENTIALS_PATH}")
+            logger.info(f"📅 GOOGLE_CALENDAR_CREDENTIALS_PATH: {self.GOOGLE_CALENDAR_CREDENTIALS_PATH}")
             if not os.path.exists(self.GOOGLE_CALENDAR_CREDENTIALS_PATH):
-                logger.warning(f"Google Calendar credentials file not found: {self.GOOGLE_CALENDAR_CREDENTIALS_PATH}")
+                logger.warning(f"⚠️ Google Calendar credentials file not found: {self.GOOGLE_CALENDAR_CREDENTIALS_PATH}")
         else:
-            logger.info("Google Calendar integration disabled (no credentials path)")
+            logger.info("📅 Google Calendar integration disabled (no credentials path)")
         
         if self.GOOGLE_CALENDAR_ID:
-            logger.info(f"GOOGLE_CALENDAR_ID: {self.GOOGLE_CALENDAR_ID}")
+            logger.info(f"🗓️ GOOGLE_CALENDAR_ID: {self.GOOGLE_CALENDAR_ID}")
         else:
-            logger.info("Google Calendar ID not set")
+            logger.info("🗓️ Google Calendar ID not set")
 
 # Global settings instance
 _settings: Optional[Settings] = None

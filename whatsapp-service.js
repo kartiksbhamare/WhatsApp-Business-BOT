@@ -29,7 +29,7 @@ async function initializeWhatsAppClient() {
     console.log(`🚀 Starting WhatsApp Web Client... (Attempt ${initializationAttempts})`);
 
     try {
-        // Create WhatsApp client with enhanced cloud-optimized settings
+        // Create WhatsApp client with Railway-optimized settings
         client = new Client({
             authStrategy: new LocalAuth({
                 clientId: "booking-bot",
@@ -37,55 +37,90 @@ async function initializeWhatsAppClient() {
             }),
             puppeteer: {
                 headless: true,
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
+                executablePath: '/usr/bin/google-chrome-stable',
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
                     '--no-first-run',
                     '--no-zygote',
-                    '--disable-gpu',
                     '--disable-extensions',
                     '--disable-default-apps',
-                    '--disable-translate',
                     '--disable-sync',
+                    '--disable-translate',
                     '--disable-background-networking',
                     '--disable-background-timer-throttling',
                     '--disable-renderer-backgrounding',
                     '--disable-backgrounding-occluded-windows',
-                    '--disable-ipc-flooding-protection',
+                    '--disable-client-side-phishing-detection',
                     '--disable-features=TranslateUI',
-                    '--disable-features=BlinkGenPropertyTrees',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--single-process',
+                    '--disable-ipc-flooding-protection',
                     '--memory-pressure-off',
-                    '--max_old_space_size=4096',
-                    // Additional Railway-specific flags
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--run-all-compositor-stages-before-draw',
-                    '--disable-newsfeed-facebook-chrome-rollout',
-                    '--disable-logging',
-                    '--disable-permissions-api',
-                    '--disable-notifications',
-                    '--disable-offer-store-unmasked-wallet-cards',
-                    '--disable-offer-upload-credit-cards',
+                    '--max_old_space_size=2048',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-canvas-aa',
+                    '--disable-2d-canvas-clip-aa',
+                    '--disable-gl-drawing-for-tests',
+                    '--disable-dev-shm-usage',
+                    '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-speech-api',
-                    '--hide-scrollbars',
-                    '--mute-audio',
+                    '--disable-gpu-sandbox',
+                    '--disable-software-rasterizer',
                     '--disable-background-timer-throttling',
                     '--disable-backgrounding-occluded-windows',
                     '--disable-renderer-backgrounding',
-                    '--disable-client-side-phishing-detection',
-                    '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
-                    '--disable-rtc-smoothness-algorithm'
+                    '--disable-field-trial-config',
+                    '--disable-features=AudioServiceOutOfProcess',
+                    '--disable-features=IPCFlooding',
+                    '--disable-features=LazyFrameLoading',
+                    '--disable-features=ScriptStreaming',
+                    '--disable-features=V8VmFuture',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-features=VizHitTestSurfaceLayer',
+                    '--disable-features=VizSurfaceActivation',
+                    '--force-color-profile=srgb',
+                    '--metrics-recording-only',
+                    '--no-crash-upload',
+                    '--no-default-browser-check',
+                    '--no-pings',
+                    '--password-store=basic',
+                    '--use-mock-keychain',
+                    '--disable-component-update',
+                    '--disable-domain-reliability',
+                    '--disable-features=AutofillServerCommunication',
+                    '--disable-features=CertificateTransparencyComponentUpdater',
+                    '--disable-features=OptimizationHints',
+                    '--disable-features=Translate',
+                    '--disable-features=InterestFeedContentSuggestions',
+                    '--disable-features=MediaRouter',
+                    '--disable-default-apps',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--autoplay-policy=user-gesture-required',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-notifications',
+                    '--disable-renderer-backgrounding',
+                    '--disable-permissions-api',
+                    '--disable-popup-blocking'
                 ],
-                timeout: 60000, // Increase timeout for cloud
-                protocolTimeout: 60000,
-                defaultViewport: null
+                timeout: 0, // No timeout
+                protocolTimeout: 0, // No protocol timeout
+                handleSIGINT: false,
+                handleSIGTERM: false,
+                handleSIGHUP: false,
+                ignoreHTTPSErrors: true,
+                defaultViewport: {
+                    width: 1366,
+                    height: 768
+                }
+            },
+            webVersionCache: {
+                type: 'remote',
+                remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
             }
         });
 
@@ -109,8 +144,8 @@ async function initializeWhatsAppClient() {
             isInitializing = false;
             
             if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
-                console.log(`🔄 Retrying WhatsApp Web initialization in 15 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
-                setTimeout(initializeWhatsAppClient, 15000);
+                console.log(`🔄 Retrying WhatsApp Web initialization in 20 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
+                setTimeout(initializeWhatsAppClient, 20000);
             }
         });
 
@@ -153,8 +188,8 @@ async function initializeWhatsAppClient() {
             client = null;
             
             if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
-                console.log('🔄 Attempting to reconnect in 10 seconds...');
-                setTimeout(initializeWhatsAppClient, 10000);
+                console.log('🔄 Attempting to reconnect in 15 seconds...');
+                setTimeout(initializeWhatsAppClient, 15000);
             }
         });
 
@@ -166,15 +201,21 @@ async function initializeWhatsAppClient() {
 
         // Initialize the client with retry logic
         console.log('🔧 Initializing WhatsApp Web Client...');
+        console.log('⏳ This may take 30-60 seconds in cloud environment...');
+        
+        // Add a longer delay before initialization in cloud
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
         await client.initialize();
 
     } catch (error) {
         console.error('❌ Error initializing WhatsApp Web Client:', error.message);
+        console.error('🔍 Full error:', error);
         isInitializing = false;
         
         if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
-            console.log(`🔄 Retrying WhatsApp Web Client initialization in 15 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
-            setTimeout(initializeWhatsAppClient, 15000);
+            console.log(`🔄 Retrying WhatsApp Web Client initialization in 20 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
+            setTimeout(initializeWhatsAppClient, 20000);
         } else {
             console.log('❌ Max initialization attempts reached. Please restart the service.');
         }
