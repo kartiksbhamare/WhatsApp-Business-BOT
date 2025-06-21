@@ -1,12 +1,17 @@
 [build]
+# Force Railway to use Dockerfile instead of Nixpacks
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+# Railway deployment configuration
 healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckTimeout = 60
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+
+# Force rebuild - Updated with critical fixes
+# Timestamp: 2024-12-19 - WhatsApp Web Client and Firebase fixes applied
 
 [environments.production]
 RAILWAY_DOCKERFILE_PATH = "Dockerfile"
