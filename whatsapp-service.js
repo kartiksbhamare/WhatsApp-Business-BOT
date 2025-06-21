@@ -139,14 +139,31 @@ async function initializeWhatsAppClient() {
             
             console.log('📝 QR Code is ready!');
             
-            // Show the actual Railway URL
-            const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || 'your-app.railway.app';
-            const protocol = railwayUrl.includes('localhost') ? 'http' : 'https';
-            const fullUrl = railwayUrl.startsWith('http') ? railwayUrl : `${protocol}://${railwayUrl}`;
+            // Try to detect Railway URL from various environment variables
+            const possibleUrls = [
+                process.env.RAILWAY_PUBLIC_DOMAIN,
+                process.env.RAILWAY_STATIC_URL,
+                process.env.PUBLIC_URL,
+                process.env.VERCEL_URL,
+                process.env.RAILWAY_DOMAIN
+            ].filter(Boolean);
             
             console.log('🌐 ========================================');
             console.log('🌐 SCAN QR CODE AT THIS URL:');
-            console.log(`🌐 ${fullUrl}/qr`);
+            
+            if (possibleUrls.length > 0) {
+                const railwayUrl = possibleUrls[0];
+                const protocol = railwayUrl.includes('localhost') ? 'http' : 'https';
+                const fullUrl = railwayUrl.startsWith('http') ? railwayUrl : `${protocol}://${railwayUrl}`;
+                console.log(`🌐 ${fullUrl}/qr`);
+            } else {
+                console.log('🌐 1. Go to Railway Dashboard → Settings → Networking');
+                console.log('🌐 2. Click "Generate Domain" button');
+                console.log('🌐 3. Copy the generated URL');
+                console.log('🌐 4. Add "/qr" to the end of the URL');
+                console.log('🌐 5. Visit that URL to scan the QR code');
+            }
+            
             console.log('🌐 ========================================');
             console.log('⚠️ IMPORTANT: This QR code will expire in 45 seconds!');
         });
@@ -532,15 +549,32 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Status: http://localhost:${PORT}/status`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     
-    // Show the public Railway URL for QR code access
-    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RAILWAY_STATIC_URL || 'your-app.railway.app';
-    const protocol = railwayUrl.includes('localhost') ? 'http' : 'https';
-    const fullUrl = railwayUrl.startsWith('http') ? railwayUrl : `${protocol}://${railwayUrl}`;
+    // Try to detect Railway URL from various environment variables
+    const possibleUrls = [
+        process.env.RAILWAY_PUBLIC_DOMAIN,
+        process.env.RAILWAY_STATIC_URL,
+        process.env.PUBLIC_URL,
+        process.env.VERCEL_URL,
+        process.env.RAILWAY_DOMAIN
+    ].filter(Boolean);
     
     console.log('🌐 ========================================');
-    console.log('🌐 PUBLIC RAILWAY URL:');
-    console.log(`🌐 ${fullUrl}`);
-    console.log(`🌐 QR CODE PAGE: ${fullUrl}/qr`);
+    console.log('🌐 TO ACCESS QR CODE:');
+    
+    if (possibleUrls.length > 0) {
+        const railwayUrl = possibleUrls[0];
+        const protocol = railwayUrl.includes('localhost') ? 'http' : 'https';
+        const fullUrl = railwayUrl.startsWith('http') ? railwayUrl : `${protocol}://${railwayUrl}`;
+        console.log(`🌐 PUBLIC URL: ${fullUrl}`);
+        console.log(`🌐 QR CODE PAGE: ${fullUrl}/qr`);
+    } else {
+        console.log('🌐 1. Go to Railway Dashboard → Settings → Networking');
+        console.log('🌐 2. Click "Generate Domain" button');
+        console.log('🌐 3. Copy the generated URL');
+        console.log('🌐 4. Add "/qr" to the end of the URL');
+        console.log('🌐 5. Visit that URL to scan the QR code');
+    }
+    
     console.log('🌐 ========================================');
     
     // Initialize WhatsApp Web Client after server starts
