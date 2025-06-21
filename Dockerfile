@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y \
     dbus \
     dbus-x11 \
     xvfb \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome for whatsapp-web.js
@@ -73,8 +74,19 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 RUN echo '#!/bin/bash\n\
 echo "🚀 Starting Smart WhatsApp Booking Bot on Railway..."\n\
 \n\
+# Create Firebase credentials file from environment variable\n\
+if [ ! -z "$FIREBASE_KEY_JSON" ]; then\n\
+    echo "📝 Creating Firebase credentials file..."\n\
+    echo "$FIREBASE_KEY_JSON" > /app/firebase-key.json\n\
+    echo "✅ Firebase credentials file created"\n\
+else\n\
+    echo "⚠️ Warning: FIREBASE_KEY_JSON environment variable not set"\n\
+fi\n\
+\n\
 # Start virtual display for headless Chrome\n\
+echo "🖥️ Starting virtual display..."\n\
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
+echo "✅ Virtual display started"\n\
 \n\
 # Start WhatsApp Web service in background\n\
 echo "📱 Starting WhatsApp Web service..."\n\
@@ -83,7 +95,8 @@ WHATSAPP_PID=$!\n\
 echo "WhatsApp Web service started with PID: $WHATSAPP_PID"\n\
 \n\
 # Wait for WhatsApp service to initialize\n\
-sleep 5\n\
+echo "⏰ Waiting for services to initialize..."\n\
+sleep 8\n\
 \n\
 # Start FastAPI application\n\
 echo "🚀 Starting FastAPI backend..."\n\

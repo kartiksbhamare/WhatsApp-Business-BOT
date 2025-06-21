@@ -29,14 +29,15 @@ async function initializeWhatsAppClient() {
     console.log(`🚀 Starting WhatsApp Web Client... (Attempt ${initializationAttempts})`);
 
     try {
-        // Create WhatsApp client with LocalAuth and cloud-optimized settings
+        // Create WhatsApp client with enhanced cloud-optimized settings
         client = new Client({
             authStrategy: new LocalAuth({
-                clientId: "booking-bot"
+                clientId: "booking-bot",
+                dataPath: "/app/.wwebjs_auth"
             }),
             puppeteer: {
                 headless: true,
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -58,10 +59,33 @@ async function initializeWhatsAppClient() {
                     '--disable-features=BlinkGenPropertyTrees',
                     '--disable-web-security',
                     '--disable-features=VizDisplayCompositor',
-                    '--single-process', // Important for Railway deployment
+                    '--single-process',
                     '--memory-pressure-off',
-                    '--max_old_space_size=4096'
-                ]
+                    '--max_old_space_size=4096',
+                    // Additional Railway-specific flags
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--run-all-compositor-stages-before-draw',
+                    '--disable-newsfeed-facebook-chrome-rollout',
+                    '--disable-logging',
+                    '--disable-permissions-api',
+                    '--disable-notifications',
+                    '--disable-offer-store-unmasked-wallet-cards',
+                    '--disable-offer-upload-credit-cards',
+                    '--disable-setuid-sandbox',
+                    '--disable-speech-api',
+                    '--hide-scrollbars',
+                    '--mute-audio',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-client-side-phishing-detection',
+                    '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+                    '--disable-rtc-smoothness-algorithm'
+                ],
+                timeout: 60000, // Increase timeout for cloud
+                protocolTimeout: 60000,
+                defaultViewport: null
             }
         });
 
@@ -85,8 +109,8 @@ async function initializeWhatsAppClient() {
             isInitializing = false;
             
             if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
-                console.log(`🔄 Retrying WhatsApp Web initialization in 10 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
-                setTimeout(initializeWhatsAppClient, 10000);
+                console.log(`🔄 Retrying WhatsApp Web initialization in 15 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
+                setTimeout(initializeWhatsAppClient, 15000);
             }
         });
 
@@ -129,17 +153,19 @@ async function initializeWhatsAppClient() {
             client = null;
             
             if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
-                console.log('🔄 Attempting to reconnect...');
-                setTimeout(initializeWhatsAppClient, 5000);
+                console.log('🔄 Attempting to reconnect in 10 seconds...');
+                setTimeout(initializeWhatsAppClient, 10000);
             }
         });
 
         // Error handling
         client.on('error', (error) => {
             console.error('❌ WhatsApp Web Client error:', error);
+            // Don't retry immediately on error, wait for disconnection event
         });
 
-        // Initialize the client
+        // Initialize the client with retry logic
+        console.log('🔧 Initializing WhatsApp Web Client...');
         await client.initialize();
 
     } catch (error) {
@@ -147,8 +173,8 @@ async function initializeWhatsAppClient() {
         isInitializing = false;
         
         if (initializationAttempts < MAX_INITIALIZATION_ATTEMPTS) {
-            console.log(`🔄 Retrying WhatsApp Web Client initialization in 10 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
-            setTimeout(initializeWhatsAppClient, 10000);
+            console.log(`🔄 Retrying WhatsApp Web Client initialization in 15 seconds... (${initializationAttempts}/${MAX_INITIALIZATION_ATTEMPTS})`);
+            setTimeout(initializeWhatsAppClient, 15000);
         } else {
             console.log('❌ Max initialization attempts reached. Please restart the service.');
         }
@@ -347,6 +373,9 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`📊 Status: http://localhost:${PORT}/status`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     
-    // Initialize WhatsApp Web Client
-    initializeWhatsAppClient();
+    // Initialize WhatsApp Web Client after server starts
+    console.log('⏰ Waiting 5 seconds before initializing WhatsApp Client...');
+    setTimeout(() => {
+        initializeWhatsAppClient();
+    }, 5000);
 }); 
