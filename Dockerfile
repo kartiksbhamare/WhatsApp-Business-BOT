@@ -92,7 +92,7 @@ echo "✅ Virtual display started"\n\
 export SALON_A_PORT=3005\n\
 export SALON_B_PORT=3006\n\
 export SALON_C_PORT=3007\n\
-export WHATSAPP_SERVICE_URL="http://localhost:3000"\n\
+export WHATSAPP_SERVICE_URL="http://localhost:3005"\n\
 export BACKEND_URL="http://localhost:$PORT"\n\
 \n\
 # Start Mock WhatsApp Web service in background (no Puppeteer issues)\n\
