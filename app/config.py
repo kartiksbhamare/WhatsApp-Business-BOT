@@ -19,10 +19,10 @@ class Settings(BaseSettings):
     WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Mock service runs on port 3000
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
-    # Multi-Salon WhatsApp Service URLs
-    SALON_A_WHATSAPP_URL: str = "http://localhost:3005"
-    SALON_B_WHATSAPP_URL: str = "http://localhost:3006"
-    SALON_C_WHATSAPP_URL: str = "http://localhost:3007"
+    # Multi-Salon WhatsApp Service URLs - all use mock service on port 3000 for Railway
+    SALON_A_WHATSAPP_URL: str = "http://localhost:3000"
+    SALON_B_WHATSAPP_URL: str = "http://localhost:3000"
+    SALON_C_WHATSAPP_URL: str = "http://localhost:3000"
     
     # Multi-Salon Phone Numbers
     SALON_A_PHONE: str = "+1234567890"
