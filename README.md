@@ -1,6 +1,46 @@
-# Smart WhatsApp Booking Bot
+# 🚀 Smart WhatsApp Booking Bot - Multi-Salon Edition
 
-A smart WhatsApp booking system for salons built with FastAPI, Firebase, and Venom Bot (FREE WhatsApp automation).
+[![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen.svg)](https://github.com/kartiksbhamare/WhatsApp-Business-BOT)
+[![Multi-Salon](https://img.shields.io/badge/Multi--Salon-Supported-blue.svg)](https://github.com/kartiksbhamare/WhatsApp-Business-BOT)
+[![Railway](https://img.shields.io/badge/Deploy-Railway-purple.svg)](https://railway.app)
+
+## 🏢 Multi-Salon Architecture
+
+This system now supports **true multi-salon separation** with:
+
+- **3 Separate WhatsApp Numbers** (one per salon)
+- **Individual QR Codes** for each salon
+- **Automatic Salon Detection** - customers just send "hi"
+- **Complete Service Isolation** - no cross-salon confusion
+
+### 🎯 Salon Configuration
+
+| Salon | Port | WhatsApp Number | Services |
+|-------|------|----------------|----------|
+| 🏪 Downtown Beauty | 3005 | Individual Number | Hair Cut, Facial, Wash |
+| 💇 Uptown Hair Studio | 3006 | Individual Number | Hair Styling, Treatments |
+| ✨ Luxury Spa & Salon | 3007 | Individual Number | Spa, Massage, Premium Services |
+
+## 🚀 Quick Start
+
+### Local Testing
+```bash
+npm run unified
+```
+
+### Railway Deployment
+1. Push to GitHub
+2. Connect to Railway
+3. Auto-deployment handles all 3 salons
+
+## 📱 QR Code URLs (Production)
+- Salon A: `https://your-app.railway.app:3005/qr`
+- Salon B: `https://your-app.railway.app:3006/qr`
+- Salon C: `https://your-app.railway.app:3007/qr`
+
+---
+
+*Powered by Option A: Unified Multi-Salon Service Architecture*
 
 ## 🚀 Features
 
