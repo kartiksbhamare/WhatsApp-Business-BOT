@@ -70,9 +70,9 @@ ENV DISPLAY=:99
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
-# Create startup script for Railway with unified multi-salon service
+# Create startup script for Railway with REAL WhatsApp Web.js service
 RUN echo '#!/bin/bash\n\
-echo "🚀 Starting Smart WhatsApp Booking Bot with Multi-Salon Support on Railway..."\n\
+echo "🚀 Starting Smart WhatsApp Booking Bot with REAL WhatsApp Integration on Railway..."\n\
 \n\
 # Create Firebase credentials file from environment variable\n\
 if [ ! -z "$FIREBASE_KEY_JSON" ]; then\n\
@@ -88,34 +88,33 @@ echo "🖥️ Starting virtual display..."\n\
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
 echo "✅ Virtual display started"\n\
 \n\
-# Set environment variables for multi-salon setup\n\
-export SALON_A_PORT=3005\n\
-export SALON_B_PORT=3006\n\
-export SALON_C_PORT=3007\n\
-export WHATSAPP_SERVICE_URL="http://localhost:3005"\n\
+# Set environment variables for Railway deployment\n\
+export WHATSAPP_SERVICE_URL="http://localhost:3000"\n\
 export BACKEND_URL="http://localhost:$PORT"\n\
+export BACKEND_PORT="$PORT"\n\
 \n\
-# Start Mock WhatsApp Web service in background (no Puppeteer issues)\n\
-echo "📱 Starting Mock WhatsApp Web service (Railway-safe)..."\n\
+# Start REAL WhatsApp Web service in background\n\
+echo "📱 Starting REAL WhatsApp Web service with valid QR codes..."\n\
 (\n\
-  node whatsapp-service-mock.js || {\n\
-    echo "❌ Mock WhatsApp service failed to start, but continuing with FastAPI..."\n\
-    exit 0\n\
+  node whatsapp-service-real.js || {\n\
+    echo "❌ Real WhatsApp service failed, falling back to mock..."\n\
+    node whatsapp-service-mock.js\n\
   }\n\
 ) &\n\
 WHATSAPP_PID=$!\n\
-echo "✅ Mock WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
+echo "✅ Real WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
 \n\
 # Wait for WhatsApp services to initialize\n\
 echo "⏰ Waiting for WhatsApp services to initialize..."\n\
-sleep 8\n\
+sleep 12\n\
 \n\
-# Start FastAPI application on Railway PORT (this MUST work)\n\
+# Start FastAPI application on Railway PORT\n\
 echo "🚀 Starting FastAPI backend on port $PORT..."\n\
 echo "🔗 Service URLs:"\n\
-echo "  📱 Mock WhatsApp: http://localhost:3000"\n\
+echo "  📱 Real WhatsApp: http://localhost:3000"\n\
 echo "  🏢 Main App: https://your-app.railway.app"\n\
 echo "  📋 Health Check: https://your-app.railway.app/health"\n\
+echo "  🎯 QR Codes: https://your-app.railway.app/qr"\n\
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT\n\
 ' > /app/start-railway.sh && chmod +x /app/start-railway.sh
 

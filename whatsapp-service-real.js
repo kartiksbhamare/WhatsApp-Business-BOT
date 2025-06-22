@@ -108,7 +108,8 @@ async function initializeClients() {
                     };
                     
                     // Send to salon-specific webhook
-                    const response = await fetch(`http://localhost:8080/webhook/whatsapp/${salonId}`, {
+                    const backendPort = process.env.BACKEND_PORT || process.env.PORT || 8080;
+                    const response = await fetch(`http://localhost:${backendPort}/webhook/whatsapp/${salonId}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
