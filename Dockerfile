@@ -104,7 +104,7 @@ echo "📱 Starting Mock WhatsApp Web service (Railway-safe)..."\n\
   }\n\
 ) &\n\
 WHATSAPP_PID=$!\n\
-echo "✅ Mock WhatsApp Web service started with PID: $WHATSAPP_PID"\n\
+echo "✅ Mock WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
 \n\
 # Wait for WhatsApp services to initialize\n\
 echo "⏰ Waiting for WhatsApp services to initialize..."\n\
@@ -112,10 +112,10 @@ sleep 8\n\
 \n\
 # Start FastAPI application on Railway PORT (this MUST work)\n\
 echo "🚀 Starting FastAPI backend on port $PORT..."\n\
-echo "🔗 QR Code URLs will be available at:"\n\
-echo "  🏢 Salon A: https://your-app.railway.app:3005/qr"\n\
-echo "  🏢 Salon B: https://your-app.railway.app:3006/qr"\n\
-echo "  🏢 Salon C: https://your-app.railway.app:3007/qr"\n\
+echo "🔗 Service URLs:"\n\
+echo "  📱 Mock WhatsApp: http://localhost:3000"\n\
+echo "  🏢 Main App: https://your-app.railway.app"\n\
+echo "  📋 Health Check: https://your-app.railway.app/health"\n\
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT\n\
 ' > /app/start-railway.sh && chmod +x /app/start-railway.sh
 

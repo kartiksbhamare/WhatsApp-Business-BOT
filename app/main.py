@@ -827,7 +827,7 @@ async def qr_code_page():
                 </html>
             """)
             
-    except Exception as e:
+                except Exception as e:
         logger.error(f"Error in main QR page: {e}")
         return HTMLResponse(content=f"""
             <!DOCTYPE html>
@@ -911,7 +911,7 @@ async def qr_code_salon_a():
                 </body>
                 </html>
             """)
-        else:
+                    else:
             # Show QR for this specific salon
             try:
                 qr_img_response = requests.get(f"{whatsapp_url}/qr-image", timeout=10)
@@ -991,7 +991,7 @@ async def qr_code_salon_a():
                 </body>
                 </html>
             """)
-    except Exception as e:
+                except Exception as e:
         logger.error(f"Error proxying QR page for Salon A: {e}")
         return HTMLResponse(content=f"""
             <!DOCTYPE html>
@@ -1061,7 +1061,7 @@ async def qr_code_salon_b():
                 </body>
                 </html>
             """)
-        else:
+            else:
             # Show QR for this specific salon
             try:
                 qr_img_response = requests.get(f"{whatsapp_url}/qr-image", timeout=10)

@@ -3,7 +3,7 @@ const fs = require('fs');
 
 // Mock WhatsApp service for Railway (no Puppeteer)
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;  // Fixed port 3000 for mock service, not Railway PORT
 
 console.log('🚀 Starting Mock WhatsApp Service for Railway');
 

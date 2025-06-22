@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # WhatsApp Web Service Settings - with backward compatibility
-    WHATSAPP_SERVICE_URL: str = f"http://localhost:{os.getenv('PORT', '3000')}"  # Use same port as Railway service
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Mock service will run on 3000, not Railway PORT
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
     # Multi-Salon WhatsApp Service URLs
@@ -77,13 +77,13 @@ class Settings(BaseSettings):
     
     @property
     def salon_whatsapp_mapping(self) -> Dict[str, str]:
-        """Get salon ID to WhatsApp service URL mapping - all use main service for Railway deployment"""
+        """Get salon ID to WhatsApp service URL mapping - all use mock service on port 3000 for Railway deployment"""
         return {
-            "salon_a": self.WHATSAPP_SERVICE_URL,
-            "salon_b": self.WHATSAPP_SERVICE_URL,
-            "salon_c": self.WHATSAPP_SERVICE_URL,
+            "salon_a": "http://localhost:3000",
+            "salon_b": "http://localhost:3000", 
+            "salon_c": "http://localhost:3000",
             # Add default salon for backward compatibility
-            "default": self.WHATSAPP_SERVICE_URL
+            "default": "http://localhost:3000"
         }
     
     def get_salon_from_phone(self, to_phone: str) -> str:
