@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # WhatsApp Web Service Settings - with backward compatibility
-    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Mock service will run on 3000, not Railway PORT
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Mock service runs on port 3000
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
     # Multi-Salon WhatsApp Service URLs
