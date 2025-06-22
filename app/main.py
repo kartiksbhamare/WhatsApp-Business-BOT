@@ -580,7 +580,7 @@ async def whatsapp_webhook_salon(salon_id: str, request: Request):
         if not message or not phone:
             logger.error("❌ Missing message or phone in WhatsApp webhook")
             return {"error": "Missing required data"}
-        
+            
         # Process message with salon context
         reply_message = await process_message_for_salon(message, phone, salon_id, contact_name)
         
@@ -772,26 +772,6 @@ async def qr_code_page():
                         setTimeout(function() {{
                             window.location.reload();
                         }}, 30000);
-                        
-                        // Track that user accessed Luxury Spa QR page
-                        if (typeof(Storage) !== "undefined") {{
-                            localStorage.setItem("preferred_salon", "salon_c");
-                            localStorage.setItem("salon_name", "Luxury Spa & Salon");
-                            localStorage.setItem("qr_access_time", new Date().toISOString());
-                            console.log("🎯 Set salon preference: salon_c");
-                        }}
-                        
-                        // Also try to notify backend about QR access
-                        fetch('/api/track-qr-access', {{
-                            method: 'POST',
-                            headers: {{ 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{
-                                salon_id: 'salon_c',
-                                salon_name: 'Luxury Spa & Salon',
-                                user_agent: navigator.userAgent,
-                                timestamp: new Date().toISOString()
-                            }})
-                        }}).catch(e => console.log('Track request failed:', e));
                     </script>
                 </head>
                 <body>
@@ -974,26 +954,6 @@ async def qr_code_salon_a():
                     </style>
                     <script>
                         setTimeout(function() {{ window.location.reload(); }}, 30000);
-                        
-                        // Track that user accessed Luxury Spa QR page
-                        if (typeof(Storage) !== "undefined") {{
-                            localStorage.setItem("preferred_salon", "salon_c");
-                            localStorage.setItem("salon_name", "Luxury Spa & Salon");
-                            localStorage.setItem("qr_access_time", new Date().toISOString());
-                            console.log("🎯 Set salon preference: salon_c");
-                        }}
-                        
-                        // Also try to notify backend about QR access
-                        fetch('/api/track-qr-access', {{
-                            method: 'POST',
-                            headers: {{ 'Content-Type': 'application/json' }},
-                            body: JSON.stringify({{
-                                salon_id: 'salon_c',
-                                salon_name: 'Luxury Spa & Salon',
-                                user_agent: navigator.userAgent,
-                                timestamp: new Date().toISOString()
-                            }})
-                        }}).catch(e => console.log('Track request failed:', e));
                     </script>
                 </head>
                 <body>
@@ -1011,10 +971,10 @@ async def qr_code_salon_a():
                         </div>
                         
                         <div class="special-command">
-                            <h3>🎯 IMPORTANT: Salon Selection Command</h3>
-                            <p><strong>After scanning, send:</strong></p>
-                            <p style="font-size: 1.3em; font-weight: bold;">"hi salon_a"</p>
-                            <p>This ensures you connect to Downtown Beauty Salon specifically!</p>
+                            <h3>🎯 Automatic Salon Detection</h3>
+                            <p><strong>Great news!</strong> When you scan this QR code and send your first message, you'll be automatically connected to Downtown Beauty Salon.</p>
+                            <p style="font-size: 1.3em; font-weight: bold; color: #4CAF50;">✅ Just send "hi" - no special commands needed!</p>
+                            <p>Our system will detect that you accessed this salon's QR page.</p>
                         </div>
                         
                         <div class="instructions">
@@ -1023,8 +983,8 @@ async def qr_code_salon_a():
                                 <li>Scan the QR code above with WhatsApp</li>
                                 <li>Open WhatsApp → Settings → Linked Devices</li>
                                 <li>Tap "Link a Device" and scan</li>
-                                <li><strong>Send "hi salon_a"</strong> to connect to this salon</li>
-                                <li>You'll only see Downtown Beauty Salon services</li>
+                                <li><strong>Send "hi"</strong> - you'll automatically connect to this salon</li>
+                                <li>You'll only see Downtown Beauty Salon services and barbers</li>
                             </ol>
                         </div>
                     </div>
