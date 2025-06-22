@@ -50,8 +50,14 @@ class Settings(BaseSettings):
     
     def _handle_backward_compatibility(self):
         """Handle backward compatibility for renamed environment variables"""
-        # If VENOM_SERVICE_URL is set but WHATSAPP_SERVICE_URL is default, use the old value
-        if self.VENOM_SERVICE_URL and self.WHATSAPP_SERVICE_URL == "http://localhost:3000":
+        # For Railway deployment, always use port 3000 for mock service
+        # Override any old environment variables that might point to wrong ports
+        if "railway" in os.environ.get("RAILWAY_ENVIRONMENT_NAME", "").lower() or os.environ.get("PORT"):
+            # Force correct port for Railway deployment
+            self.WHATSAPP_SERVICE_URL = "http://localhost:3000"
+            logger.info("🚂 Railway deployment detected - forcing WhatsApp service to port 3000")
+        elif self.VENOM_SERVICE_URL and self.WHATSAPP_SERVICE_URL == "http://localhost:3000":
+            # Only use VENOM_SERVICE_URL for local development
             self.WHATSAPP_SERVICE_URL = self.VENOM_SERVICE_URL
             logger.info("Using VENOM_SERVICE_URL for backward compatibility. Please update to WHATSAPP_SERVICE_URL")
     
@@ -78,12 +84,14 @@ class Settings(BaseSettings):
     @property
     def salon_whatsapp_mapping(self) -> Dict[str, str]:
         """Get salon ID to WhatsApp service URL mapping - all use mock service on port 3000 for Railway deployment"""
+        # For Railway deployment, always use the mock service on port 3000
+        base_url = "http://localhost:3000"  # Force port 3000 for all salons
         return {
-            "salon_a": "http://localhost:3000",
-            "salon_b": "http://localhost:3000", 
-            "salon_c": "http://localhost:3000",
+            "salon_a": base_url,
+            "salon_b": base_url, 
+            "salon_c": base_url,
             # Add default salon for backward compatibility
-            "default": "http://localhost:3000"
+            "default": base_url
         }
     
     def get_salon_from_phone(self, to_phone: str) -> str:
