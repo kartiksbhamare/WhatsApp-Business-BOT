@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # WhatsApp Web Service Settings - with backward compatibility
-    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # WhatsApp service runs on port 3000
+    WHATSAPP_SERVICE_URL = os.getenv("WHATSAPP_SERVICE_URL", "http://localhost:3005")  # Changed to unified service port
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
     # Multi-Salon WhatsApp Service URLs

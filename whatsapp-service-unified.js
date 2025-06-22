@@ -136,30 +136,29 @@ function initializeSalon(salonId) {
                 '--no-first-run',
                 '--no-zygote',
                 '--single-process',
-                '--disable-gpu'
+                '--disable-gpu',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-extensions',
+                '--disable-plugins',
+                '--disable-default-apps',
+                '--disable-hang-monitor',
+                '--disable-prompt-on-repost',
+                '--disable-sync',
+                '--disable-translate',
+                '--disable-ipc-flooding-protection',
+                '--memory-pressure-off',
+                '--max_old_space_size=4096'
             ],
             defaultViewport: {
                 width: 1366,
                 height: 768
-            }
+            },
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
         }
-    });
-    
-    // QR Code event
-    salon.client.on('qr', (qr) => {
-        console.log(`📱 [${salon.name}] QR Code generated`);
-        salon.qrCodeData = qr;
-        salon.connectionStatus.qr_generated_count += 1;
-        saveConnectionStatus(salonId);
-        
-        // Generate QR code image
-        qrcode.toFile(`${salonId}_qr.png`, qr, (err) => {
-            if (err) {
-                console.error(`❌ [${salon.name}] Error generating QR code image:`, err);
-            } else {
-                console.log(`✅ [${salon.name}] QR code image saved as ${salonId}_qr.png`);
-            }
-        });
     });
     
     // Ready event
@@ -179,6 +178,40 @@ function initializeSalon(salonId) {
         salon.isReady = false;
         salon.clientInfo = null;
         updateConnectionStatus(salonId, false);
+        
+        // Auto-retry connection after 30 seconds
+        setTimeout(() => {
+            console.log(`🔄 [${salon.name}] Attempting to reconnect...`);
+            try {
+                salon.client.initialize();
+            } catch (error) {
+                console.error(`❌ [${salon.name}] Reconnection failed:`, error.message);
+            }
+        }, 30000);
+    });
+    
+    // Error event
+    salon.client.on('auth_failure', (msg) => {
+        console.error(`❌ [${salon.name}] Authentication failure:`, msg);
+        salon.isReady = false;
+        updateConnectionStatus(salonId, false);
+    });
+    
+    // QR Code event
+    salon.client.on('qr', (qr) => {
+        console.log(`📱 [${salon.name}] QR Code generated`);
+        salon.qrCodeData = qr;
+        salon.connectionStatus.qr_generated_count += 1;
+        saveConnectionStatus(salonId);
+        
+        // Generate QR code image
+        qrcode.toFile(`${salonId}_qr.png`, qr, (err) => {
+            if (err) {
+                console.error(`❌ [${salon.name}] Error generating QR code image:`, err);
+            } else {
+                console.log(`✅ [${salon.name}] QR code image saved as ${salonId}_qr.png`);
+            }
+        });
     });
     
     // Message received event
@@ -257,8 +290,25 @@ function initializeSalon(salonId) {
     // Setup Express routes for this salon
     setupSalonRoutes(salonId);
     
-    // Initialize WhatsApp client
-    salon.client.initialize();
+    // Initialize WhatsApp client with error handling
+    try {
+        console.log(`🔄 [${salon.name}] Initializing WhatsApp client...`);
+        salon.client.initialize();
+    } catch (error) {
+        console.error(`❌ [${salon.name}] Error initializing WhatsApp client:`, error.message);
+        salon.isReady = false;
+        updateConnectionStatus(salonId, false);
+        
+        // Retry after 10 seconds
+        setTimeout(() => {
+            console.log(`🔄 [${salon.name}] Retrying initialization...`);
+            try {
+                salon.client.initialize();
+            } catch (retryError) {
+                console.error(`❌ [${salon.name}] Retry failed:`, retryError.message);
+            }
+        }, 10000);
+    }
 }
 
 // Setup Express routes for a salon
