@@ -1014,7 +1014,8 @@ async def generate_real_qr(salon_id: str):
         
         # Generate WhatsApp Business URL
         # This creates a direct link to start a WhatsApp chat with pre-filled business message
-        whatsapp_url = f"https://wa.me/{phone.replace('+', '')}?text={business_message.replace(' ', '%20').replace('!', '%21').replace('?', '%3F').replace("'", '%27')}"
+        encoded_message = business_message.replace(' ', '%20').replace('!', '%21').replace('?', '%3F').replace("'", '%27')
+        whatsapp_url = f"https://wa.me/{phone.replace('+', '')}?text={encoded_message}"
         
         # Generate high-quality QR code
         qr = qrcode.QRCode(
