@@ -827,7 +827,7 @@ async def qr_code_page():
                 </html>
             """)
             
-                except Exception as e:
+    except Exception as e:
         logger.error(f"Error in main QR page: {e}")
         return HTMLResponse(content=f"""
             <!DOCTYPE html>
@@ -911,7 +911,7 @@ async def qr_code_salon_a():
                 </body>
                 </html>
             """)
-                    else:
+        else:
             # Show QR for this specific salon
             try:
                 qr_img_response = requests.get(f"{whatsapp_url}/qr-image", timeout=10)
@@ -991,21 +991,21 @@ async def qr_code_salon_a():
                 </body>
                 </html>
             """)
-                except Exception as e:
-        logger.error(f"Error proxying QR page for Salon A: {e}")
-        return HTMLResponse(content=f"""
-            <!DOCTYPE html>
-            <html>
-            <head><title>Downtown Beauty Salon - QR Code</title></head>
-            <body style="font-family: Arial; text-align: center; padding: 50px;">
-                <h1>🏪 Downtown Beauty Salon</h1>
-                <h2>🔄 WhatsApp Service Starting...</h2>
-                <p>Please wait a moment and refresh this page.</p>
-                <button onclick="window.location.reload()">🔄 Refresh</button>
-                <script>setTimeout(() => window.location.reload(), 10000);</script>
-            </body>
-            </html>
-        """, status_code=503)
+    except Exception as e:
+            logger.error(f"Error proxying QR page for Salon A: {e}")
+            return HTMLResponse(content=f"""
+                <!DOCTYPE html>
+                <html>
+                <head><title>Downtown Beauty Salon - QR Code</title></head>
+                <body style="font-family: Arial; text-align: center; padding: 50px;">
+                    <h1>🏪 Downtown Beauty Salon</h1>
+                    <h2>🔄 WhatsApp Service Starting...</h2>
+                    <p>Please wait a moment and refresh this page.</p>
+                    <button onclick="window.location.reload()">🔄 Refresh</button>
+                    <script>setTimeout(() => window.location.reload(), 10000);</script>
+                </body>
+                </html>
+            """, status_code=503)
 
 @app.get("/salon2/qr", response_class=HTMLResponse)
 async def qr_code_salon_b():
@@ -1061,7 +1061,7 @@ async def qr_code_salon_b():
                 </body>
                 </html>
             """)
-            else:
+        else:
             # Show QR for this specific salon
             try:
                 qr_img_response = requests.get(f"{whatsapp_url}/qr-image", timeout=10)
@@ -1162,20 +1162,20 @@ async def qr_code_salon_b():
                 </html>
             """)
     except Exception as e:
-        logger.error(f"Error proxying QR page for Salon B: {e}")
-        return HTMLResponse(content=f"""
-            <!DOCTYPE html>
-            <html>
-            <head><title>Uptown Hair Studio - QR Code</title></head>
-            <body style="font-family: Arial; text-align: center; padding: 50px;">
-                <h1>💇 Uptown Hair Studio</h1>
-                <h2>🔄 WhatsApp Service Starting...</h2>
-                <p>Please wait a moment and refresh this page.</p>
-                <button onclick="window.location.reload()">🔄 Refresh</button>
-                <script>setTimeout(() => window.location.reload(), 10000);</script>
-            </body>
-            </html>
-        """, status_code=503)
+            logger.error(f"Error proxying QR page for Salon B: {e}")
+            return HTMLResponse(content=f"""
+                <!DOCTYPE html>
+                <html>
+                <head><title>Uptown Hair Studio - QR Code</title></head>
+                <body style="font-family: Arial; text-align: center; padding: 50px;">
+                    <h1>💇 Uptown Hair Studio</h1>
+                    <h2>🔄 WhatsApp Service Starting...</h2>
+                    <p>Please wait a moment and refresh this page.</p>
+                    <button onclick="window.location.reload()">🔄 Refresh</button>
+                    <script>setTimeout(() => window.location.reload(), 10000);</script>
+                </body>
+                </html>
+            """, status_code=503)
 
 @app.get("/salon3/qr", response_class=HTMLResponse)
 async def qr_code_salon_c():
@@ -1332,20 +1332,20 @@ async def qr_code_salon_c():
                 </html>
             """)
     except Exception as e:
-        logger.error(f"Error proxying QR page for Salon C: {e}")
-        return HTMLResponse(content=f"""
-            <!DOCTYPE html>
-            <html>
-            <head><title>Luxury Spa & Salon - QR Code</title></head>
-            <body style="font-family: Arial; text-align: center; padding: 50px;">
-                <h1>✨ Luxury Spa & Salon</h1>
-                <h2>🔄 WhatsApp Service Starting...</h2>
-                <p>Please wait a moment and refresh this page.</p>
-                <button onclick="window.location.reload()">🔄 Refresh</button>
-                <script>setTimeout(() => window.location.reload(), 10000);</script>
-            </body>
-            </html>
-        """, status_code=503)
+            logger.error(f"Error proxying QR page for Salon C: {e}")
+            return HTMLResponse(content=f"""
+                <!DOCTYPE html>
+                <html>
+                <head><title>Luxury Spa & Salon - QR Code</title></head>
+                <body style="font-family: Arial; text-align: center; padding: 50px;">
+                    <h1>✨ Luxury Spa & Salon</h1>
+                    <h2>🔄 WhatsApp Service Starting...</h2>
+                    <p>Please wait a moment and refresh this page.</p>
+                    <button onclick="window.location.reload()">🔄 Refresh</button>
+                    <script>setTimeout(() => window.location.reload(), 10000);</script>
+                </body>
+                </html>
+            """, status_code=503)
 
 @app.get("/qr-image")
 async def qr_code_image():
