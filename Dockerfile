@@ -72,7 +72,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 # Create startup script for Railway with REAL WhatsApp Web.js service
 RUN echo '#!/bin/bash\n\
-echo "🚀 Starting Smart WhatsApp Booking Bot with REAL WhatsApp Integration on Railway..."\n\
+echo "🚀 Starting Smart WhatsApp Booking Bot with PRODUCTION WhatsApp Integration on Railway..."\n\
 \n\
 # Create Firebase credentials file from environment variable\n\
 if [ ! -z "$FIREBASE_KEY_JSON" ]; then\n\
@@ -93,25 +93,25 @@ export WHATSAPP_SERVICE_URL="http://localhost:3000"\n\
 export BACKEND_URL="http://localhost:$PORT"\n\
 export BACKEND_PORT="$PORT"\n\
 \n\
-# Start REAL WhatsApp Web service in background\n\
-echo "📱 Starting Railway-optimized WhatsApp Web service with real QR codes..."\n\
+# Start PRODUCTION WhatsApp Web service in background\n\
+echo "📱 Starting Production WhatsApp Web service with real QR codes..."\n\
 (\n\
-  node whatsapp-service-railway.js || {\n\
-    echo "❌ Railway WhatsApp service failed, falling back to mock..."\n\
+  node whatsapp-service-production.js || {\n\
+    echo "❌ Production WhatsApp service failed, falling back to mock..."\n\
     node whatsapp-service-mock.js\n\
   }\n\
 ) &\n\
 WHATSAPP_PID=$!\n\
-echo "✅ Railway WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
+echo "✅ Production WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
 \n\
 # Wait for WhatsApp services to initialize\n\
 echo "⏰ Waiting for WhatsApp services to initialize..."\n\
-sleep 12\n\
+sleep 15\n\
 \n\
 # Start FastAPI application on Railway PORT\n\
 echo "🚀 Starting FastAPI backend on port $PORT..."\n\
 echo "🔗 Service URLs:"\n\
-echo "  📱 Real WhatsApp: http://localhost:3000"\n\
+echo "  📱 Production WhatsApp: http://localhost:3000"\n\
 echo "  🏢 Main App: https://your-app.railway.app"\n\
 echo "  📋 Health Check: https://your-app.railway.app/health"\n\
 echo "  🎯 QR Codes: https://your-app.railway.app/qr"\n\
