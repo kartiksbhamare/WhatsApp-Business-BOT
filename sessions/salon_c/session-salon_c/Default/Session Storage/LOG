@@ -1,3 +1,4 @@
-2025/06/22-22:06:32.449 a103 Reusing MANIFEST /Users/kartik/Smart WhatsApp Booking Bot/sessions/salon_c/session-salon_c/Default/Session Storage/MANIFEST-000001
-2025/06/22-22:06:32.450 a103 Recovering log #3
-2025/06/22-22:06:32.451 a103 Reusing old log /Users/kartik/Smart WhatsApp Booking Bot/sessions/salon_c/session-salon_c/Default/Session Storage/000003.log 
+2025/06/23-00:26:07.376 b703 Reusing MANIFEST /Users/kartik/Smart WhatsApp Booking Bot/sessions/salon_c/session-salon_c/Default/Session Storage/MANIFEST-000001
+2025/06/23-00:26:07.376 b703 Recovering log #3
+2025/06/23-00:26:07.376 b703 (ignoring error) /Users/kartik/Smart WhatsApp Booking Bot/sessions/salon_c/session-salon_c/Default/Session Storage/000003.log: dropping 227 bytes; Corruption: checksum mismatch
+2025/06/23-00:26:07.376 b703 Reusing old log /Users/kartik/Smart WhatsApp Booking Bot/sessions/salon_c/session-salon_c/Default/Session Storage/000003.log 
