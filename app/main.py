@@ -634,23 +634,79 @@ async def qr_code_page():
             """)
         else:
             # WhatsApp needs to be connected - show QR codes for all salons
+            try:
+                # Get the QR code image directly
+                whatsapp_url = settings.WHATSAPP_SERVICE_URL
+                
+                # Try to get QR image first
+                try:
+                    qr_img_response = requests.get(f"{whatsapp_url}/qr-image", timeout=10)
+                    if qr_img_response.status_code == 200:
+                        # QR image is available
+                        qr_content = f'''
+                        <div style="text-align: center;">
+                            <img src="/qr-image" alt="QR Code" style="max-width: 300px; width: 100%; height: auto; border: 2px solid #ddd; border-radius: 8px;">
+                            <p style="margin-top: 15px; color: #666; font-size: 14px;">Scan this QR code with WhatsApp</p>
+                        </div>
+                        '''
+                    else:
+                        raise Exception("QR image not available")
+                except:
+                    # Fallback to QR simple page content
+                    qr_response = requests.get(f"{whatsapp_url}/qr-simple", timeout=10)
+                    if qr_response.status_code == 200:
+                        qr_content = '''
+                        <div style="text-align: center; padding: 20px;">
+                            <iframe src="/qr-simple" width="100%" height="400" frameborder="0" style="border-radius: 8px;"></iframe>
+                        </div>
+                        '''
+                    else:
+                        qr_content = '''
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                            <p>QR Code is being generated...</p>
+                            <p style="font-size: 12px;">This page will auto-refresh in 30 seconds</p>
+                        </div>
+                        '''
+                    
+            except Exception as e:
+                logger.error(f"Error getting QR content: {e}")
+                qr_content = '''
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🔄</div>
+                    <p>Loading QR Code...</p>
+                    <p style="font-size: 12px;">Please refresh the page</p>
+                </div>
+                '''
+            
             return HTMLResponse(content=f"""
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <title>Multi-Salon WhatsApp QR Codes</title>
                     <style>
-                        body {{ font-family: Arial, sans-serif; text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }}
+                        body {{ font-family: Arial, sans-serif; text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; margin: 0; }}
                         .container {{ max-width: 1000px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px); }}
                         .salon-section {{ background: rgba(255,255,255,0.2); margin: 20px 0; padding: 25px; border-radius: 10px; }}
-                        .qr-container {{ background: white; padding: 20px; border-radius: 10px; margin: 15px auto; max-width: 400px; }}
-                        .qr-code {{ width: 100%; max-width: 300px; height: auto; }}
+                        .qr-container {{ background: white; padding: 30px; border-radius: 10px; margin: 15px auto; max-width: 450px; color: black; }}
                         h1 {{ margin-bottom: 30px; font-size: 2.5em; }}
                         h2 {{ color: #ffd700; margin-bottom: 15px; }}
-                        .phone {{ font-size: 1.2em; margin: 10px 0; }}
+                        .phone {{ font-size: 1.2em; margin: 10px 0; font-weight: bold; }}
                         .instructions {{ background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; margin-top: 30px; }}
                         .notice {{ background: rgba(255,215,0,0.2); color: #ffd700; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px solid #ffd700; }}
+                        .qr-refresh {{ background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }}
+                        .qr-refresh:hover {{ background: #45a049; }}
                     </style>
+                    <script>
+                        function refreshQR() {{
+                            window.location.reload();
+                        }}
+                        
+                        // Auto-refresh every 30 seconds if QR is not ready
+                        setTimeout(function() {{
+                            window.location.reload();
+                        }}, 30000);
+                    </script>
                 </head>
                 <body>
                     <div class="container">
@@ -665,7 +721,8 @@ async def qr_code_page():
                             <h2>🏪 Downtown Beauty Salon</h2>
                             <div class="phone">📞 +1234567890</div>
                             <div class="qr-container">
-                                <iframe src="/qr-simple" width="100%" height="350" frameborder="0"></iframe>
+                                {qr_content}
+                                <button class="qr-refresh" onclick="refreshQR()">🔄 Refresh QR Code</button>
                             </div>
                         </div>
                         
@@ -673,7 +730,9 @@ async def qr_code_page():
                             <h2>💇 Uptown Hair Studio</h2>
                             <div class="phone">📞 +0987654321</div>
                             <div class="qr-container">
-                                <iframe src="/qr-simple" width="100%" height="350" frameborder="0"></iframe>
+                                <p style="color: #666; margin-bottom: 15px;">Same QR Code - All Salons Connected</p>
+                                {qr_content}
+                                <button class="qr-refresh" onclick="refreshQR()">🔄 Refresh QR Code</button>
                             </div>
                         </div>
                         
@@ -681,7 +740,9 @@ async def qr_code_page():
                             <h2>✨ Luxury Spa & Salon</h2>
                             <div class="phone">📞 +1122334455</div>
                             <div class="qr-container">
-                                <iframe src="/qr-simple" width="100%" height="350" frameborder="0"></iframe>
+                                <p style="color: #666; margin-bottom: 15px;">Same QR Code - All Salons Connected</p>
+                                {qr_content}
+                                <button class="qr-refresh" onclick="refreshQR()">🔄 Refresh QR Code</button>
                             </div>
                         </div>
                         
