@@ -630,13 +630,15 @@ async def qr_code_page():
             try:
                 response = requests.get(f"{whatsapp_url}/qr/{salon_id}", timeout=5)
                 if response.status_code == 200:
-                    # Check if this is a fallback QR or real WhatsApp
-                    if "Direct WhatsApp Link" in response.text:
-                        salon_qr_data[salon_id] = "fallback"
-                    elif "Connected Successfully" in response.text:
+                    # Check if this is a real WhatsApp Web QR, connected, or loading
+                    if "WhatsApp Web Connected Successfully" in response.text:
                         salon_qr_data[salon_id] = "connected"
-                    else:
+                    elif "Connect Your WhatsApp to the Booking Bot" in response.text:
+                        salon_qr_data[salon_id] = "qr_ready"
+                    elif "Setting up WhatsApp Web Connection" in response.text:
                         salon_qr_data[salon_id] = "loading"
+                    else:
+                        salon_qr_data[salon_id] = "unknown"
                 else:
                     salon_qr_data[salon_id] = "unavailable"
             except:
@@ -657,8 +659,8 @@ async def qr_code_page():
             if status == "connected":
                 status_text = "✅ WhatsApp Connected"
                 status_color = "#28a745"
-            elif status == "fallback":
-                status_text = "📱 Direct WhatsApp Link Ready"
+            elif status == "qr_ready":
+                status_text = "📱 WhatsApp Web QR Ready"
                 status_color = "#ffc107"
             elif status == "loading":
                 status_text = "⏳ Initializing..."

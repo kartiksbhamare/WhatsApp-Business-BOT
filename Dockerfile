@@ -94,15 +94,15 @@ export BACKEND_URL="http://localhost:$PORT"\n\
 export BACKEND_PORT="$PORT"\n\
 \n\
 # Start REAL WhatsApp Web service in background\n\
-echo "📱 Starting REAL WhatsApp Web service with valid QR codes..."\n\
+echo "📱 Starting Railway-optimized WhatsApp Web service with real QR codes..."\n\
 (\n\
-  node whatsapp-service-real.js || {\n\
-    echo "❌ Real WhatsApp service failed, falling back to mock..."\n\
+  node whatsapp-service-railway.js || {\n\
+    echo "❌ Railway WhatsApp service failed, falling back to mock..."\n\
     node whatsapp-service-mock.js\n\
   }\n\
 ) &\n\
 WHATSAPP_PID=$!\n\
-echo "✅ Real WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
+echo "✅ Railway WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
 \n\
 # Wait for WhatsApp services to initialize\n\
 echo "⏰ Waiting for WhatsApp services to initialize..."\n\
