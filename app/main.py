@@ -366,7 +366,6 @@ async def whatsapp_webhook(request: Request):
             elif session["step"] == "date" and message.isdigit():
                 logger.info(f"📅 Processing date selection: {message}")
                 try:
-                    from datetime import datetime, timedelta
                     today = datetime.now()
                     tomorrow = today + timedelta(days=1)
                     
@@ -403,7 +402,6 @@ async def whatsapp_webhook(request: Request):
             elif session["step"] == "time" and message.isdigit():
                 logger.info(f"⏰ Processing time selection: {message}")
                 try:
-                    from datetime import datetime
                     selected_date = datetime.strptime(session["date"], "%Y-%m-%d")
                     slots = get_available_slots(session["barber"], selected_date)
                     selected_time = slots[int(message) - 1]
