@@ -96,10 +96,16 @@ async function initializeSalonClient(salonId, config) {
 
         // QR Code event - generates REAL WhatsApp Web QR codes
         client.on('qr', async (qr) => {
-            console.log(`📱 REAL WhatsApp QR generated for ${config.name}`);
+            console.log(`📱 REAL WhatsApp Web QR generated for ${config.name}`);
             
             try {
-                // Convert the real WhatsApp QR to image
+                // Store the REAL WhatsApp Web QR string (not converted to image yet)
+                qrCodes[salonId] = {
+                    qrString: qr,  // This is the actual WhatsApp Web QR data
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Also create an image version for display
                 const qrImage = await qrcode.toDataURL(qr, {
                     width: 300,
                     margin: 2,
@@ -108,11 +114,12 @@ async function initializeSalonClient(salonId, config) {
                         light: '#FFFFFF'
                     }
                 });
-                qrCodes[salonId] = qrImage;
+                qrCodes[salonId].qrImage = qrImage;
+                
                 connectionStatus[salonId].qr_generated_count++;
-                console.log(`✅ QR image created for ${config.name}`);
+                console.log(`✅ REAL WhatsApp Web QR stored for ${config.name}`);
             } catch (error) {
-                console.error(`❌ Error creating QR image for ${config.name}:`, error);
+                console.error(`❌ Error storing WhatsApp Web QR for ${config.name}:`, error);
                 generateFallbackQR(salonId, config);
             }
         });
@@ -366,21 +373,40 @@ app.get('/qr/:salonId', (req, res) => {
     }
 });
 
-// QR image endpoints
+// QR image endpoints - serve REAL WhatsApp Web QR codes
 app.get('/qr-image/:salonId', (req, res) => {
     const { salonId } = req.params;
-    const qrImage = qrCodes[salonId];
+    const qrData = qrCodes[salonId];
     
-    if (qrImage) {
-        const base64Data = qrImage.replace(/^data:image\/png;base64,/, "");
+    if (qrData && qrData.qrImage) {
+        const base64Data = qrData.qrImage.replace(/^data:image\/png;base64,/, "");
         const img = Buffer.from(base64Data, 'base64');
         res.writeHead(200, {
             'Content-Type': 'image/png',
-            'Content-Length': img.length
+            'Content-Length': img.length,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         });
         res.end(img);
     } else {
-        res.status(404).json({ error: 'QR code not available yet' });
+        res.status(404).json({ error: 'Real WhatsApp Web QR code not available yet' });
+    }
+});
+
+// Get raw QR string for real WhatsApp Web linking
+app.get('/qr-string/:salonId', (req, res) => {
+    const { salonId } = req.params;
+    const qrData = qrCodes[salonId];
+    
+    if (qrData && qrData.qrString) {
+        res.json({ 
+            qrString: qrData.qrString,
+            timestamp: qrData.timestamp,
+            salon: SALON_CONFIG[salonId]?.name || 'Unknown'
+        });
+    } else {
+        res.status(404).json({ error: 'Real WhatsApp Web QR string not available yet' });
     }
 });
 

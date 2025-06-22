@@ -985,7 +985,7 @@ def get_most_recent_salon_access() -> Optional[str]:
 
 @app.get("/qr-real/{salon_id}")
 async def generate_real_qr(salon_id: str):
-    """Generate a real WhatsApp Web linking QR code for salon"""
+    """Get real WhatsApp Web QR code from the WhatsApp service"""
     try:
         # Log QR access
         log_qr_access(salon_id, "qr_generation")
@@ -1002,57 +1002,77 @@ async def generate_real_qr(salon_id: str):
         
         salon_name = salon_names[salon_id]
         
-        # Generate WhatsApp Web linking URL
-        # This creates a QR code that when scanned, opens WhatsApp Web for linking
-        # The user will scan this to connect their WhatsApp as the bot for this salon
-        whatsapp_web_url = f"https://web.whatsapp.com/send?text=Hi%20I%20want%20to%20connect%20{salon_name.replace(' ', '%20')}%20booking%20bot"
-        
-        # Generate high-quality QR code for WhatsApp Web linking
-        qr = qrcode.QRCode(
-            version=1,  # Controls the size of the QR Code
-            error_correction=qrcode.constants.ERROR_CORRECT_M,  # Better error correction for business use
-            box_size=12,  # Larger box size for better scanning
-            border=4,  # Standard border
-        )
-        qr.add_data(whatsapp_web_url)
-        qr.make(fit=True)
-        
-        # Create QR code image with business-appropriate styling
-        img = qr.make_image(fill_color="black", back_color="white")
-        
-        # Convert to bytes
-        img_buffer = io.BytesIO()
-        img.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
-        
-        logger.info(f"✅ Generated WhatsApp Web linking QR for {salon_name} ({salon_id})")
-        
-        return Response(
-            content=img_buffer.getvalue(), 
-            media_type="image/png",
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+        # Try to get the real WhatsApp Web QR image from the WhatsApp service
+        try:
+            whatsapp_url = settings.WHATSAPP_SERVICE_URL
+            response = requests.get(f"{whatsapp_url}/qr-image/{salon_id}", timeout=10)
+            
+            if response.status_code == 200:
+                logger.info(f"✅ Retrieved real WhatsApp Web QR for {salon_name} ({salon_id})")
+                return Response(
+                    content=response.content,
+                    media_type="image/png",
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
+            else:
+                logger.warning(f"⚠️ WhatsApp service returned {response.status_code} for {salon_id}")
+                raise Exception(f"WhatsApp service returned {response.status_code}")
+                
+        except Exception as service_error:
+            logger.warning(f"⚠️ Could not get real QR from WhatsApp service: {service_error}")
+            
+            # Fallback: Create a loading/connecting message
+            img = Image.new('RGB', (300, 300), color='white')
+            draw = ImageDraw.Draw(img)
+            
+            try:
+                font = ImageFont.load_default()
+            except:
+                font = None
+                
+            error_text = f"Connecting to\n{salon_name}\n\nWhatsApp Web QR\nGenerating...\n\nPlease wait"
+            
+            # Calculate text position (center)
+            bbox = draw.textbbox((0, 0), error_text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            x = (300 - text_width) // 2
+            y = (300 - text_height) // 2
+            
+            draw.text((x, y), error_text, fill='black', font=font, align='center')
+            
+            # Convert to bytes
+            img_buffer = io.BytesIO()
+            img.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+            
+            return Response(
+                content=img_buffer.getvalue(), 
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0"
+                }
+            )
         
     except Exception as e:
-        logger.error(f"❌ Error generating WhatsApp Web QR for {salon_id}: {e}")
+        logger.error(f"❌ Error getting real WhatsApp Web QR for {salon_id}: {e}")
         
         # Create a fallback error image
-        # Create a simple error image
         img = Image.new('RGB', (300, 300), color='white')
         draw = ImageDraw.Draw(img)
         
-        # Add error text
         try:
-            # Try to use a default font
             font = ImageFont.load_default()
         except:
             font = None
             
-        error_text = "WhatsApp Web\nQR Code\nGenerating...\n\nPlease refresh\nin a moment"
+        error_text = "WhatsApp Web\nService\nStarting...\n\nPlease refresh\nin a moment"
         
         # Calculate text position (center)
         bbox = draw.textbbox((0, 0), error_text, font=font)
@@ -1211,48 +1231,49 @@ async def qr_web_page(salon_id: str):
                     </div>
                     
                     <div class="live-notice">
-                        <h3>🔗 WhatsApp Web Linking</h3>
-                        <p><strong>Scan this QR code to link your WhatsApp as the {salon_name} booking bot!</strong></p>
-                        <p>Once connected, customers can message you directly and get automatic booking responses.</p>
+                        <h3>🔗 Real WhatsApp Web QR Code</h3>
+                        <p><strong>This is a GENUINE WhatsApp Web QR code generated by WhatsApp Web.js!</strong></p>
+                        <p>When you scan this QR code, it will link your WhatsApp to WhatsApp Web as the {salon_name} booking bot.</p>
+                        <p><strong>This is the same QR code you see when linking WhatsApp Web in your browser!</strong></p>
                     </div>
                     
                     <div class="qr-container" id="qr-container">
-                        <h3>📱 Link Your WhatsApp</h3>
-                        <img id="qr-image" src="/qr-real/{salon_id}" alt="WhatsApp Web QR Code" class="qr-img" 
+                        <h3>📱 Real WhatsApp Web Linking</h3>
+                        <img id="qr-image" src="/qr-real/{salon_id}" alt="Real WhatsApp Web QR Code" class="qr-img" 
                              onerror="this.style.display='none'; document.getElementById('error-msg').style.display='block';">
                         <div id="error-msg" style="display:none; color:#dc3545; margin-top:15px;">
-                            <p>🔄 Generating QR code...</p>
+                            <p>🔄 Generating real WhatsApp Web QR...</p>
                             <button onclick="refreshQR()" class="refresh-btn">Try Again</button>
                         </div>
                         <p style="color: #666; margin-top: 15px; font-size: 14px;">
-                            <strong>Scan with WhatsApp (Settings → Linked Devices)</strong>
+                            <strong>Genuine WhatsApp Web QR Code - Same as web.whatsapp.com</strong>
                         </p>
                         <button class="refresh-btn" onclick="refreshQR()">🔄 Get Fresh QR Code</button>
                     </div>
                     
                     <div class="instructions">
-                        <h3>📋 Setup Instructions:</h3>
+                        <h3>📋 How to Link (Same as WhatsApp Web):</h3>
                         <ol>
                             <li><strong>Open WhatsApp</strong> on your phone (salon owner's phone)</li>
                             <li><strong>Go to Settings</strong> → Linked Devices</li>
                             <li><strong>Tap "Link a Device"</strong></li>
-                            <li><strong>Scan the QR code</strong> above</li>
-                            <li><strong>Your WhatsApp becomes the {salon_name} booking bot!</strong></li>
+                            <li><strong>Scan this REAL WhatsApp Web QR code</strong></li>
+                            <li><strong>Your WhatsApp is now linked as the {salon_name} bot!</strong></li>
                         </ol>
                         
                         <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
-                            <h4>🎯 After Linking:</h4>
+                            <h4>🎯 What Happens After Linking:</h4>
                             <ul>
-                                <li>✅ Customers message your WhatsApp number directly</li>
-                                <li>✅ Bot automatically responds with {salon_name}'s services</li>
-                                <li>✅ Complete booking system handles appointments</li>
-                                <li>✅ You receive booking confirmations</li>
-                                <li>✅ Professional automated responses</li>
+                                <li>✅ Your WhatsApp becomes a WhatsApp Web session</li>
+                                <li>✅ Messages to your number are handled by the booking bot</li>
+                                <li>✅ Customers get automatic responses with {salon_name}'s services</li>
+                                <li>✅ Complete booking system handles appointments automatically</li>
+                                <li>✅ You can see all conversations in your WhatsApp</li>
                             </ul>
                         </div>
                         
                         <div style="background: rgba(40,167,69,0.2); color: #28a745; padding: 15px; border-radius: 8px; margin-top: 15px; border: 2px solid #28a745;">
-                            <p><strong>💡 Important:</strong> Only the salon owner should scan this QR code. Once linked, your WhatsApp will automatically handle all booking requests for {salon_name}!</p>
+                            <p><strong>💡 This is REAL WhatsApp Web technology!</strong> The QR code is generated by the same WhatsApp Web.js library that powers WhatsApp Web. When you scan it, you're actually linking your WhatsApp to a WhatsApp Web session that runs the {salon_name} booking bot!</p>
                         </div>
                     </div>
                 </div>
@@ -1410,48 +1431,49 @@ async def qr_salon_proxy(salon_id: str):
                     </div>
                     
                     <div class="live-notice">
-                        <h3>🔗 WhatsApp Web Linking</h3>
-                        <p><strong>Scan this QR code to link your WhatsApp as the {salon_name} booking bot!</strong></p>
-                        <p>Once connected, customers can message you directly and get automatic booking responses.</p>
+                        <h3>🔗 Real WhatsApp Web QR Code</h3>
+                        <p><strong>This is a GENUINE WhatsApp Web QR code generated by WhatsApp Web.js!</strong></p>
+                        <p>When you scan this QR code, it will link your WhatsApp to WhatsApp Web as the {salon_name} booking bot.</p>
+                        <p><strong>This is the same QR code you see when linking WhatsApp Web in your browser!</strong></p>
                     </div>
                     
                     <div class="qr-container" id="qr-container">
-                        <h3>📱 Link Your WhatsApp</h3>
-                        <img id="qr-image" src="/qr-real/{salon_id}" alt="WhatsApp Web QR Code" class="qr-img" 
+                        <h3>📱 Real WhatsApp Web Linking</h3>
+                        <img id="qr-image" src="/qr-real/{salon_id}" alt="Real WhatsApp Web QR Code" class="qr-img" 
                              onerror="this.style.display='none'; document.getElementById('error-msg').style.display='block';">
                         <div id="error-msg" style="display:none; color:#dc3545; margin-top:15px;">
-                            <p>🔄 Generating QR code...</p>
+                            <p>🔄 Generating real WhatsApp Web QR...</p>
                             <button onclick="refreshQR()" class="refresh-btn">Try Again</button>
                         </div>
                         <p style="color: #666; margin-top: 15px; font-size: 14px;">
-                            <strong>Scan with WhatsApp (Settings → Linked Devices)</strong>
+                            <strong>Genuine WhatsApp Web QR Code - Same as web.whatsapp.com</strong>
                         </p>
                         <button class="refresh-btn" onclick="refreshQR()">🔄 Get Fresh QR Code</button>
                     </div>
                     
                     <div class="instructions">
-                        <h3>📋 Setup Instructions:</h3>
+                        <h3>📋 How to Link (Same as WhatsApp Web):</h3>
                         <ol>
                             <li><strong>Open WhatsApp</strong> on your phone (salon owner's phone)</li>
                             <li><strong>Go to Settings</strong> → Linked Devices</li>
                             <li><strong>Tap "Link a Device"</strong></li>
-                            <li><strong>Scan the QR code</strong> above</li>
-                            <li><strong>Your WhatsApp becomes the {salon_name} booking bot!</strong></li>
+                            <li><strong>Scan this REAL WhatsApp Web QR code</strong></li>
+                            <li><strong>Your WhatsApp is now linked as the {salon_name} bot!</strong></li>
                         </ol>
                         
                         <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
-                            <h4>🎯 After Linking:</h4>
+                            <h4>🎯 What Happens After Linking:</h4>
                             <ul>
-                                <li>✅ Customers message your WhatsApp number directly</li>
-                                <li>✅ Bot automatically responds with {salon_name}'s services</li>
-                                <li>✅ Complete booking system handles appointments</li>
-                                <li>✅ You receive booking confirmations</li>
-                                <li>✅ Professional automated responses</li>
+                                <li>✅ Your WhatsApp becomes a WhatsApp Web session</li>
+                                <li>✅ Messages to your number are handled by the booking bot</li>
+                                <li>✅ Customers get automatic responses with {salon_name}'s services</li>
+                                <li>✅ Complete booking system handles appointments automatically</li>
+                                <li>✅ You can see all conversations in your WhatsApp</li>
                             </ul>
                         </div>
                         
                         <div style="background: rgba(40,167,69,0.2); color: #28a745; padding: 15px; border-radius: 8px; margin-top: 15px; border: 2px solid #28a745;">
-                            <p><strong>💡 Important:</strong> Only the salon owner should scan this QR code. Once linked, your WhatsApp will automatically handle all booking requests for {salon_name}!</p>
+                            <p><strong>💡 This is REAL WhatsApp Web technology!</strong> The QR code is generated by the same WhatsApp Web.js library that powers WhatsApp Web. When you scan it, you're actually linking your WhatsApp to a WhatsApp Web session that runs the {salon_name} booking bot!</p>
                         </div>
                     </div>
                 </div>
