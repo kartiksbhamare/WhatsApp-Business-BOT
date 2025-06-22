@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional
+from typing import Optional, Dict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     # WhatsApp Web Service Settings - with backward compatibility
     WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # WhatsApp service runs on port 3000
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
+    
+    # Multi-Salon WhatsApp Service URLs
+    SALON_A_WHATSAPP_URL: str = "http://localhost:3005"
+    SALON_B_WHATSAPP_URL: str = "http://localhost:3006"
+    SALON_C_WHATSAPP_URL: str = "http://localhost:3007"
+    
+    # Multi-Salon Phone Numbers
+    SALON_A_PHONE: str = "+1234567890"
+    SALON_B_PHONE: str = "+0987654321"
+    SALON_C_PHONE: str = "+1122334455"
     
     # Firebase Settings - made optional with defaults for Railway deployment
     FIREBASE_PROJECT_ID: str = "appointment-booking-4c50f"  # Default project ID
@@ -51,6 +61,33 @@ class Settings(BaseSettings):
             level=getattr(logging, self.LOG_LEVEL.upper()),
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
+    
+    @property
+    def salon_phone_mapping(self) -> Dict[str, str]:
+        """Get phone to salon ID mapping"""
+        return {
+            self.SALON_A_PHONE.replace("+", "").replace("@c.us", ""): "salon_a",
+            self.SALON_B_PHONE.replace("+", "").replace("@c.us", ""): "salon_b", 
+            self.SALON_C_PHONE.replace("+", "").replace("@c.us", ""): "salon_c"
+        }
+    
+    @property
+    def salon_whatsapp_mapping(self) -> Dict[str, str]:
+        """Get salon ID to WhatsApp service URL mapping"""
+        return {
+            "salon_a": self.SALON_A_WHATSAPP_URL,
+            "salon_b": self.SALON_B_WHATSAPP_URL,
+            "salon_c": self.SALON_C_WHATSAPP_URL
+        }
+    
+    def get_salon_from_phone(self, to_phone: str) -> str:
+        """Get salon ID from receiving phone number"""
+        cleaned_phone = to_phone.replace("+", "").replace("@c.us", "")
+        return self.salon_phone_mapping.get(cleaned_phone, "salon_a")  # Default to salon_a
+    
+    def get_whatsapp_url_for_salon(self, salon_id: str) -> str:
+        """Get WhatsApp service URL for a specific salon"""
+        return self.salon_whatsapp_mapping.get(salon_id, self.WHATSAPP_SERVICE_URL)
     
     def _validate_settings(self):
         """Validate required settings and log configuration"""
