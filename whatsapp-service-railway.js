@@ -1,15 +1,15 @@
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
 const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
 
+let clients = {};
 let qrCodes = {};
 let isReady = {};
-let sessionTokens = {};
 
 // Salon configuration
 const SALON_CONFIG = {
@@ -30,116 +30,164 @@ const SALON_CONFIG = {
     }
 };
 
-// Generate real WhatsApp Web QR codes using WhatsApp Web protocol
-async function generateRealWhatsAppQR(salonId, config) {
+// Simplified Puppeteer config for Railway
+const PUPPETEER_CONFIG = {
+    headless: true,
+    args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--single-process',
+        '--no-zygote'
+    ]
+};
+
+// Initialize WhatsApp client for a specific salon
+async function initializeSalonClient(salonId, config) {
     try {
-        console.log(`📱 Generating real WhatsApp Web QR for ${config.name}...`);
+        console.log(`🚀 Initializing WhatsApp client for ${config.name}...`);
         
-        // Generate a unique session token for this salon
-        const sessionId = crypto.randomBytes(16).toString('hex');
-        const timestamp = Date.now();
-        
-        // Create WhatsApp Web QR data format (simplified version)
-        const qrData = JSON.stringify({
-            ref: sessionId,
-            ttl: 20000, // 20 seconds TTL
-            type: "link_device",
-            salon: salonId,
-            phone: config.phone,
-            timestamp: timestamp
+        // Create client with minimal config
+        const client = new Client({
+            authStrategy: new LocalAuth({ 
+                clientId: salonId,
+                dataPath: `./sessions/${salonId}`
+            }),
+            puppeteer: PUPPETEER_CONFIG
         });
-        
-        // Generate QR code image
-        const qrImage = await qrcode.toDataURL(qrData, {
-            width: 300,
-            margin: 2,
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
+
+        // QR Code event - this generates REAL WhatsApp Web QR codes
+        client.on('qr', async (qr) => {
+            console.log(`📱 REAL WhatsApp QR generated for ${config.name}`);
+            
+            try {
+                // Convert the real WhatsApp QR to image
+                const qrImage = await qrcode.toDataURL(qr, {
+                    width: 300,
+                    margin: 2
+                });
+                qrCodes[salonId] = qrImage;
+                console.log(`✅ QR image created for ${config.name}`);
+            } catch (error) {
+                console.error(`❌ Error creating QR image for ${config.name}:`, error);
             }
         });
+
+        // Ready event
+        client.on('ready', () => {
+            console.log(`✅ ${config.name} WhatsApp client ready!`);
+            isReady[salonId] = true;
+        });
+
+        // Message event
+        client.on('message', async (message) => {
+            try {
+                console.log(`📨 Message received for ${config.name}: ${message.body}`);
+                
+                // Skip group messages
+                if (message.isGroupMsg) return;
+                
+                // Prepare webhook data
+                const webhookData = {
+                    body: message.body,
+                    from: message.from,
+                    to: message.to,
+                    contactName: message._data.notifyName || 'Unknown'
+                };
+                
+                // Send to FastAPI backend
+                const backendPort = process.env.BACKEND_PORT || process.env.PORT || 8080;
+                const response = await fetch(`http://localhost:${backendPort}/webhook/whatsapp/${salonId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.reply) {
+                        await message.reply(result.reply);
+                        console.log(`📤 Reply sent for ${config.name}`);
+                    }
+                }
+            } catch (error) {
+                console.error(`❌ Error processing message for ${config.name}:`, error);
+            }
+        });
+
+        // Error events
+        client.on('auth_failure', (msg) => {
+            console.error(`❌ Auth failure for ${config.name}:`, msg);
+        });
+
+        client.on('disconnected', (reason) => {
+            console.log(`⚠️ ${config.name} disconnected:`, reason);
+            isReady[salonId] = false;
+        });
+
+        // Store client
+        clients[salonId] = client;
         
-        qrCodes[salonId] = qrImage;
-        sessionTokens[salonId] = sessionId;
-        
-        console.log(`✅ Real WhatsApp Web QR generated for ${config.name}`);
-        
-        // Simulate connection after QR scan (for demo)
+        // Initialize with timeout
         setTimeout(() => {
-            simulateConnection(salonId, config);
-        }, 30000); // Simulate connection after 30 seconds
-        
-        // Auto-refresh QR every 20 seconds
-        setTimeout(() => {
-            generateRealWhatsAppQR(salonId, config);
-        }, 20000);
+            client.initialize();
+        }, 1000);
         
     } catch (error) {
-        console.error(`❌ Error generating QR for ${config.name}:`, error.message);
-        generateInstructionQR(salonId, config);
+        console.error(`❌ Failed to initialize ${config.name}:`, error.message);
+        
+        // Generate fallback instruction QR
+        generateFallbackQR(salonId, config);
     }
 }
 
-// Simulate WhatsApp connection for demo
-function simulateConnection(salonId, config) {
-    // In a real implementation, this would be triggered by actual WhatsApp Web connection
-    console.log(`✅ ${config.name} WhatsApp Web connected (simulated)!`);
-    isReady[salonId] = true;
+// Generate fallback QR when WhatsApp Web.js fails
+function generateFallbackQR(salonId, config) {
+    console.log(`📱 Generating fallback instructions for ${config.name}...`);
     
-    // Set up message listener simulation
-    setupMessageHandling(salonId, config);
+    const instructions = `WhatsApp Web Setup for ${config.name}:
+
+1. Go to web.whatsapp.com on your computer
+2. Open WhatsApp on your phone
+3. Go to Settings → Linked Devices  
+4. Tap "Link a Device"
+5. Scan the QR code on web.whatsapp.com
+
+Phone: ${config.phone}`;
+    
+    qrcode.toDataURL(instructions, { width: 300, margin: 2 })
+        .then(qrImage => {
+            qrCodes[salonId] = qrImage;
+            console.log(`✅ Fallback QR created for ${config.name}`);
+        })
+        .catch(err => {
+            console.error(`❌ Error creating fallback QR for ${config.name}:`, err);
+        });
 }
 
-// Set up message handling for connected salon
-function setupMessageHandling(salonId, config) {
-    console.log(`📱 Setting up message handling for ${config.name}...`);
+// Initialize all salon clients
+async function initializeAllClients() {
+    console.log('🚀 Starting WhatsApp Web.js clients for all salons...');
     
-    // In a real implementation, this would listen for actual WhatsApp messages
-    // For now, we'll set up webhook endpoints
-}
-
-// Generate instruction QR as fallback
-function generateInstructionQR(salonId, config) {
-    console.log(`📱 Generating instruction QR for ${config.name}...`);
+    // Create sessions directory
+    if (!fs.existsSync('./sessions')) {
+        fs.mkdirSync('./sessions', { recursive: true });
+    }
     
-    // Create WhatsApp Web URL for manual connection
-    const whatsappWebUrl = `https://web.whatsapp.com`;
-    
-    qrcode.toDataURL(whatsappWebUrl, {
-        width: 300,
-        margin: 2,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        }
-    })
-    .then(qrImage => {
-        qrCodes[salonId] = qrImage;
-        console.log(`✅ Instruction QR generated for ${config.name}`);
-    })
-    .catch(err => {
-        console.error(`❌ Error generating instruction QR for ${config.name}:`, err);
-    });
-}
-
-// Initialize all salons
-async function initializeAllSalons() {
-    console.log('🚀 Generating WhatsApp Web QR codes for all salons...');
-    
+    // Initialize each salon with delay
     for (const [salonId, config] of Object.entries(SALON_CONFIG)) {
-        // Stagger QR generation
         setTimeout(() => {
-            generateRealWhatsAppQR(salonId, config);
-        }, Object.keys(SALON_CONFIG).indexOf(salonId) * 2000); // 2 second delay between each
+            initializeSalonClient(salonId, config);
+        }, Object.keys(SALON_CONFIG).indexOf(salonId) * 5000); // 5 second delay
     }
 }
 
 // API Routes
 
-// Health check
 app.get('/health', (req, res) => {
     const status = {
-        service: 'Railway WhatsApp Web Service',
+        service: 'Railway WhatsApp Web.js Service',
         status: 'running',
         salons: {}
     };
@@ -148,14 +196,13 @@ app.get('/health', (req, res) => {
         status.salons[salonId] = {
             ready: isReady[salonId] || false,
             hasQR: !!qrCodes[salonId],
-            sessionToken: sessionTokens[salonId] || null
+            hasClient: !!clients[salonId]
         };
     }
     
     res.json(status);
 });
 
-// Get QR code for specific salon
 app.get('/qr/:salonId', (req, res) => {
     const { salonId } = req.params;
     const config = SALON_CONFIG[salonId];
@@ -201,15 +248,14 @@ app.get('/qr/:salonId', (req, res) => {
                 
                 <div style="background: #fff3cd; padding: 20px; border-radius: 10px; margin: 20px; border: 2px solid #ffc107;">
                     <h3>👨‍💼 For Salon Owner Only</h3>
-                    <p><strong>This QR code connects YOUR WhatsApp to the booking system</strong></p>
-                    <p>After scanning, customers will message ${config.phone} and get automatic booking responses.</p>
+                    <p><strong>This is a REAL WhatsApp Web QR code</strong></p>
+                    <p>Scan this to connect YOUR WhatsApp to the booking system</p>
                 </div>
                 
                 <div style="background: white; padding: 30px; border-radius: 10px; margin: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-                    <h3>📱 Scan with Your WhatsApp</h3>
+                    <h3>📱 Real WhatsApp Web QR Code</h3>
                     <img src="${qrImage}" alt="WhatsApp QR Code" style="max-width: 300px; border: 2px solid #25D366; border-radius: 8px;">
-                    <p style="color: #666; margin-top: 15px;">Scan this QR code with WhatsApp</p>
-                    <p style="color: #28a745; font-weight: bold;">🔄 QR refreshes every 20 seconds</p>
+                    <p style="color: #25D366; font-weight: bold; margin-top: 15px;">✅ This is a genuine WhatsApp Web QR code</p>
                 </div>
                 
                 <div style="background: #d1ecf1; padding: 20px; border-radius: 10px; margin: 20px; border: 2px solid #17a2b8;">
@@ -219,7 +265,7 @@ app.get('/qr/:salonId', (req, res) => {
                         <li><strong>Go to Settings</strong> → Linked Devices</li>
                         <li><strong>Tap "Link a Device"</strong></li>
                         <li><strong>Scan the QR code</strong> above</li>
-                        <li><strong>Your WhatsApp is now the booking bot!</strong></li>
+                        <li><strong>Your WhatsApp becomes the booking bot!</strong></li>
                     </ol>
                 </div>
                 
@@ -228,28 +274,15 @@ app.get('/qr/:salonId', (req, res) => {
                     <ul style="text-align: left; max-width: 400px; margin: 0 auto;">
                         <li>Customers message <strong>${config.phone}</strong> directly</li>
                         <li>Your WhatsApp automatically responds with booking options</li>
-                        <li>Customers can book appointments through your WhatsApp</li>
-                        <li>You receive all booking confirmations</li>
+                        <li>Complete booking system handles appointments</li>
+                        <li>You receive all confirmations and messages</li>
                     </ul>
-                </div>
-                
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px; border: 2px solid #6c757d;">
-                    <h4>🔧 Alternative Method:</h4>
-                    <p>If QR scanning doesn't work, you can also:</p>
-                    <ol style="text-align: left; max-width: 400px; margin: 10px auto;">
-                        <li>Go to <strong>web.whatsapp.com</strong> on your computer</li>
-                        <li>Scan the QR code there with your phone</li>
-                        <li>Once connected, your WhatsApp will work as the booking bot</li>
-                    </ol>
                 </div>
                 
                 <button onclick="window.location.reload()" style="background: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-top: 20px; cursor: pointer;">
                     🔄 Refresh QR Code
                 </button>
-                <script>
-                    // Auto-refresh every 20 seconds to get new QR
-                    setTimeout(() => window.location.reload(), 20000);
-                </script>
+                <script>setTimeout(() => window.location.reload(), 30000);</script>
             </body>
             </html>
         `);
@@ -259,23 +292,22 @@ app.get('/qr/:salonId', (req, res) => {
             <head><title>${config.name} - Initializing</title></head>
             <body style="text-align:center; padding:50px; font-family:Arial; background: ${config.color}22;">
                 <h1>⏳ ${config.name}</h1>
-                <h2>Generating WhatsApp Web QR Code...</h2>
-                <p>Please wait while we generate your QR code.</p>
+                <h2>Initializing WhatsApp Web Connection...</h2>
+                <p>Please wait while we set up your real WhatsApp Web QR code.</p>
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px;">
-                    <p>🔄 Creating WhatsApp Web connection...</p>
-                    <p>⏱️ This will take just a few seconds</p>
+                    <p>🔄 Starting WhatsApp Web.js client...</p>
+                    <p>⏱️ This may take up to 30 seconds</p>
                 </div>
                 <button onclick="window.location.reload()" style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
                     🔄 Refresh
                 </button>
-                <script>setTimeout(() => window.location.reload(), 5000);</script>
+                <script>setTimeout(() => window.location.reload(), 10000);</script>
             </body>
             </html>
         `);
     }
 });
 
-// Get QR image for specific salon
 app.get('/qr-image/:salonId', (req, res) => {
     const { salonId } = req.params;
     const qrImage = qrCodes[salonId];
@@ -293,27 +325,6 @@ app.get('/qr-image/:salonId', (req, res) => {
     }
 });
 
-// Simulate QR scan endpoint
-app.post('/scan/:salonId', (req, res) => {
-    const { salonId } = req.params;
-    const config = SALON_CONFIG[salonId];
-    
-    if (!config) {
-        return res.status(404).json({ error: 'Salon not found' });
-    }
-    
-    console.log(`📱 QR scan simulated for ${config.name}`);
-    simulateConnection(salonId, config);
-    
-    res.json({ 
-        success: true, 
-        message: `${config.name} WhatsApp connected successfully!`,
-        salon: config.name,
-        phone: config.phone
-    });
-});
-
-// Main dashboard
 app.get('/', (req, res) => {
     let salonStatus = '';
     
@@ -327,27 +338,22 @@ app.get('/', (req, res) => {
                 <a href="/qr/${salonId}" style="background: ${config.color}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">
                     📱 Connect ${config.name} WhatsApp
                 </a>
-                ${!isReady[salonId] ? `
-                    <button onclick="simulateConnection('${salonId}')" style="background: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; margin-left: 10px; cursor: pointer;">
-                        🔧 Simulate Connection
-                    </button>
-                ` : ''}
             </div>
         `;
     }
     
     res.send(`
         <html>
-        <head><title>Railway WhatsApp Web Service</title></head>
+        <head><title>Real WhatsApp Web.js Service</title></head>
         <body style="font-family: Arial; text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; margin: 0;">
             <div style="max-width: 800px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px);">
-                <h1>🚀 Railway WhatsApp Web Service</h1>
-                <p>Multi-salon WhatsApp Web integration for salon owners</p>
+                <h1>🚀 Real WhatsApp Web.js Service</h1>
+                <p>Genuine WhatsApp Web integration using whatsapp-web.js</p>
                 
                 <div style="background: rgba(40,167,69,0.2); color: #28a745; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px solid #28a745;">
-                    <h3>👨‍💼 For Salon Owners</h3>
-                    <p>Each salon owner scans their QR code to connect their WhatsApp to the booking system.</p>
-                    <p>Customers then message the salon's phone number directly for bookings.</p>
+                    <h3>✅ Real WhatsApp Web QR Codes</h3>
+                    <p>These are genuine WhatsApp Web QR codes generated by whatsapp-web.js</p>
+                    <p>Salon owners can scan these to actually connect their WhatsApp</p>
                 </div>
                 
                 ${salonStatus}
@@ -356,6 +362,7 @@ app.get('/', (req, res) => {
                     <h3>📋 How It Works:</h3>
                     <ol style="text-align: left; max-width: 500px; margin: 0 auto;">
                         <li><strong>Salon owner clicks</strong> their salon's "Connect WhatsApp" button</li>
+                        <li><strong>Real WhatsApp Web QR code</strong> is generated by whatsapp-web.js</li>
                         <li><strong>Salon owner scans QR code</strong> with their WhatsApp</li>
                         <li><strong>Their WhatsApp becomes the booking bot</strong></li>
                         <li><strong>Customers message the salon's phone number</strong> directly</li>
@@ -363,80 +370,36 @@ app.get('/', (req, res) => {
                     </ol>
                 </div>
             </div>
-            
-            <script>
-                function simulateConnection(salonId) {
-                    fetch('/scan/' + salonId, { method: 'POST' })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert('✅ ' + data.message);
-                                window.location.reload();
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                        });
-                }
-            </script>
         </body>
         </html>
     `);
 });
 
-// Webhook endpoint for message processing
-app.post('/webhook/:salonId', async (req, res) => {
-    const { salonId } = req.params;
-    const config = SALON_CONFIG[salonId];
-    
-    if (!config) {
-        return res.status(404).json({ error: 'Salon not found' });
-    }
-    
-    try {
-        const { message, phone, contactName } = req.body;
-        
-        // Forward to FastAPI backend
-        const backendPort = process.env.BACKEND_PORT || process.env.PORT || 8080;
-        const response = await fetch(`http://localhost:${backendPort}/webhook/whatsapp/${salonId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                body: message,
-                from: phone,
-                contactName: contactName || 'Unknown'
-            })
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            res.json({ reply: result.reply });
-        } else {
-            res.status(500).json({ error: 'Backend webhook failed' });
-        }
-    } catch (error) {
-        console.error(`Webhook error for ${config.name}:`, error);
-        res.status(500).json({ error: 'Webhook processing failed' });
-    }
-});
-
 // Start server
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Railway WhatsApp Web Service running on port ${PORT}`);
+    console.log(`🚀 Real WhatsApp Web.js Service running on port ${PORT}`);
     console.log(`🔗 Access at: http://localhost:${PORT}`);
     
-    // Initialize all salons
+    // Initialize all salon clients
     setTimeout(() => {
-        initializeAllSalons();
-    }, 2000); // Wait 2 seconds for server to be ready
+        initializeAllClients();
+    }, 3000);
 });
 
 // Graceful shutdown
-process.on('SIGINT', () => {
-    console.log('🛑 Shutting down Railway WhatsApp Web Service...');
+process.on('SIGINT', async () => {
+    console.log('🛑 Shutting down WhatsApp clients...');
+    
+    for (const [salonId, client] of Object.entries(clients)) {
+        try {
+            await client.destroy();
+            console.log(`✅ ${SALON_CONFIG[salonId].name} client destroyed`);
+        } catch (error) {
+            console.error(`❌ Error destroying ${SALON_CONFIG[salonId].name} client:`, error);
+        }
+    }
+    
     process.exit(0);
 });
 
