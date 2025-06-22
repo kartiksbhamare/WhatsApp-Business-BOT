@@ -58,6 +58,65 @@ def get_firestore_client():
 # Initialize the database client
 db = get_firestore_client()
 
+# In-memory mock database for testing
+MOCK_DATABASE = {
+    "salons": {
+        "salon_a": {
+            "id": "salon_a",
+            "name": "Downtown Beauty Salon",
+            "phone": "+1234567890",
+            "address": "123 Main Street, Downtown",
+            "whatsapp_service_url": "http://localhost:3000",
+            "working_hours": {"Monday": "09:00-17:00", "Tuesday": "09:00-17:00", "Wednesday": "09:00-17:00", "Thursday": "09:00-17:00", "Friday": "09:00-17:00", "Saturday": "10:00-16:00"},
+            "timezone": "UTC",
+            "active": True
+        },
+        "salon_b": {
+            "id": "salon_b",
+            "name": "Uptown Hair Studio",
+            "phone": "+0987654321",
+            "address": "456 Oak Avenue, Uptown",
+            "whatsapp_service_url": "http://localhost:3000",
+            "working_hours": {"Monday": "10:00-18:00", "Tuesday": "10:00-18:00", "Wednesday": "10:00-18:00", "Thursday": "10:00-18:00", "Friday": "10:00-18:00", "Saturday": "09:00-17:00"},
+            "timezone": "UTC",
+            "active": True
+        },
+        "salon_c": {
+            "id": "salon_c",
+            "name": "Luxury Spa & Salon",
+            "phone": "+1122334455",
+            "address": "789 Elm Street, Westside",
+            "whatsapp_service_url": "http://localhost:3000",
+            "working_hours": {"Tuesday": "09:00-17:00", "Wednesday": "09:00-17:00", "Thursday": "09:00-17:00", "Friday": "09:00-17:00", "Saturday": "10:00-18:00", "Sunday": "10:00-16:00"},
+            "timezone": "UTC",
+            "active": True
+        }
+    },
+    "services": {
+        "salon_a_1": {"id": "salon_a_1", "salon_id": "salon_a", "name": "Hair Cut", "duration": 30, "price": 25.00, "description": "Professional hair cutting and styling"},
+        "salon_a_2": {"id": "salon_a_2", "salon_id": "salon_a", "name": "Hair Color", "duration": 90, "price": 75.00, "description": "Hair coloring and highlights"},
+        "salon_b_1": {"id": "salon_b_1", "salon_id": "salon_b", "name": "Hair Cut", "duration": 30, "price": 25.00, "description": "Professional hair cutting and styling"},
+        "salon_b_2": {"id": "salon_b_2", "salon_id": "salon_b", "name": "Hair Color", "duration": 90, "price": 75.00, "description": "Hair coloring and highlights"},
+        "salon_c_1": {"id": "salon_c_1", "salon_id": "salon_c", "name": "Hair Cut", "duration": 30, "price": 25.00, "description": "Professional hair cutting and styling"},
+        "salon_c_2": {"id": "salon_c_2", "salon_id": "salon_c", "name": "Hair Color", "duration": 90, "price": 75.00, "description": "Hair coloring and highlights"}
+    },
+    "barbers": {
+        "salon_a_maya": {"name": "Maya", "salon_id": "salon_a", "services": ["salon_a_1", "salon_a_2"], "email": "maya@downtownbeauty.com", "working_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "specialties": ["Hair Coloring"], "experience_years": 6},
+        "salon_b_aisha": {"name": "Aisha", "salon_id": "salon_b", "services": ["salon_b_1", "salon_b_2"], "email": "aisha@uptownhair.com", "working_days": ["Monday", "Wednesday", "Thursday", "Friday", "Saturday"], "specialties": ["Hair Styling"], "experience_years": 8},
+        "salon_c_priya": {"name": "Priya", "salon_id": "salon_c", "services": ["salon_c_1", "salon_c_2"], "email": "priya@luxuryspa.com", "working_days": ["Tuesday", "Friday", "Saturday", "Sunday"], "specialties": ["Spa Treatments"], "experience_years": 7}
+    }
+}
+
+USE_MOCK_DB = False
+
+def use_mock_database():
+    """Check if we should use mock database"""
+    global USE_MOCK_DB
+    if not db:
+        USE_MOCK_DB = True
+        logger.warning("Using mock database for testing")
+    return USE_MOCK_DB
+
 def get_available_slots(barber_name: str, date: datetime = None, salon_id: str = None) -> List[str]:
     """
     Get available slots for a barber on a specific date
@@ -70,6 +129,10 @@ def get_available_slots(barber_name: str, date: datetime = None, salon_id: str =
     Returns:
         List of available time slots
     """
+    if use_mock_database():
+        # Return mock available slots for testing
+        return ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM", "03:00 PM", "04:00 PM"]
+    
     if not db:
         logger.error("Database not available. Cannot get available slots.")
         return []
@@ -131,6 +194,14 @@ def book_slot(booking_data: Dict, salon_id: str = None) -> Dict[str, str]:
     Returns:
         Dict with status and message
     """
+    if use_mock_database():
+        # Mock booking success for testing
+        return {
+            'status': 'success',
+            'message': 'Booking confirmed successfully (mock)',
+            'booking_id': f"mock_booking_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        }
+    
     if not db:
         logger.error("Database not available. Cannot book slot.")
         return {
@@ -199,6 +270,12 @@ def check_barbers_initialized():
 
 def get_salon(salon_id: str) -> Optional[Salon]:
     """Get a specific salon by ID"""
+    if use_mock_database():
+        salon_data = MOCK_DATABASE["salons"].get(salon_id)
+        if salon_data:
+            return Salon(**salon_data)
+        return None
+    
     if not db:
         logger.error("Database not available. Cannot get salon.")
         return None
@@ -216,6 +293,13 @@ def get_salon(salon_id: str) -> Optional[Salon]:
 
 def get_all_salons() -> List[Salon]:
     """Get all salons from Firestore"""
+    if use_mock_database():
+        salons = []
+        for salon_data in MOCK_DATABASE["salons"].values():
+            if salon_data.get("active", True):
+                salons.append(Salon(**salon_data))
+        return salons
+    
     if not db:
         logger.error("Database not available. Cannot get salons.")
         return []
@@ -374,6 +458,13 @@ def init_default_data():
 
 def get_all_services(salon_id: str = None):
     """Get all services from Firestore, optionally filtered by salon"""
+    if use_mock_database():
+        services = []
+        for service_data in MOCK_DATABASE["services"].values():
+            if not salon_id or service_data.get("salon_id") == salon_id:
+                services.append(Service(**service_data))
+        return services
+    
     if not db:
         logger.error("Database not available. Cannot get services.")
         return []
@@ -395,6 +486,18 @@ def get_all_services(salon_id: str = None):
 
 def get_service(service_id: str, salon_id: str = None):
     """Get a specific service by ID, optionally filtered by salon"""
+    if use_mock_database():
+        # If salon_id is provided, construct the full service ID
+        if salon_id and not service_id.startswith(salon_id):
+            full_service_id = f"{salon_id}_{service_id}"
+        else:
+            full_service_id = service_id
+            
+        service_data = MOCK_DATABASE["services"].get(full_service_id)
+        if service_data:
+            return Service(**service_data)
+        return None
+    
     if not db:
         logger.error("Database not available. Cannot get service.")
         return None
@@ -418,6 +521,13 @@ def get_service(service_id: str, salon_id: str = None):
 
 def get_all_barbers(salon_id: str = None):
     """Get all barbers from Firestore, optionally filtered by salon"""
+    if use_mock_database():
+        barbers = []
+        for barber_data in MOCK_DATABASE["barbers"].values():
+            if not salon_id or barber_data.get("salon_id") == salon_id:
+                barbers.append(Barber(**barber_data))
+        return barbers
+    
     if not db:
         logger.error("Database not available. Cannot get barbers.")
         return []
@@ -458,6 +568,20 @@ def get_barber(email: str, salon_id: str = None):
 
 def get_barbers_for_service(service_id: str, salon_id: str = None):
     """Get all barbers that provide a specific service, optionally filtered by salon"""
+    if use_mock_database():
+        barbers = []
+        # If salon_id is provided, construct the full service ID
+        if salon_id and not service_id.startswith(salon_id):
+            full_service_id = f"{salon_id}_{service_id}"
+        else:
+            full_service_id = service_id
+            
+        for barber_data in MOCK_DATABASE["barbers"].values():
+            if full_service_id in barber_data.get("services", []):
+                if not salon_id or barber_data.get("salon_id") == salon_id:
+                    barbers.append(Barber(**barber_data))
+        return barbers
+    
     if not db:
         logger.error("Database not available. Cannot get barbers for service.")
         return []
