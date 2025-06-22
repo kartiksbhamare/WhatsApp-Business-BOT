@@ -985,30 +985,37 @@ def get_most_recent_salon_access() -> Optional[str]:
 
 @app.get("/qr-real/{salon_id}")
 async def generate_real_qr(salon_id: str):
-    """Get real WhatsApp Web QR code from the WhatsApp service"""
+    """Generate real WhatsApp Web QR code image for salon using unified service"""
     try:
-        # Log QR access
-        log_qr_access(salon_id, "qr_generation")
-        
-        # Salon configuration
+        # Get salon info
         salon_names = {
             "salon_a": "Downtown Beauty Salon",
-            "salon_b": "Uptown Hair Studio",
+            "salon_b": "Uptown Hair Studio", 
             "salon_c": "Luxury Spa & Salon"
+        }
+        salon_ports = {
+            "salon_a": "3005",
+            "salon_b": "3006", 
+            "salon_c": "3007"
         }
         
         if salon_id not in salon_names:
             raise HTTPException(status_code=404, detail="Salon not found")
-        
+            
         salon_name = salon_names[salon_id]
+        salon_port = salon_ports[salon_id]
         
-        # Try to get the real WhatsApp Web QR image from the WhatsApp service
+        # Log QR access
+        log_qr_access(salon_id, "api")
+        
+        # Try to get the real WhatsApp Web QR image from the unified service
         try:
-            whatsapp_url = settings.WHATSAPP_SERVICE_URL
-            response = requests.get(f"{whatsapp_url}/qr-image/{salon_id}", timeout=10)
+            # Connect to the specific salon port in unified service
+            whatsapp_url = f"http://localhost:{salon_port}"
+            response = requests.get(f"{whatsapp_url}/qr-image", timeout=10)
             
             if response.status_code == 200:
-                logger.info(f"✅ Retrieved real WhatsApp Web QR for {salon_name} ({salon_id})")
+                logger.info(f"✅ Retrieved real WhatsApp Web QR for {salon_name} ({salon_id}) from port {salon_port}")
                 return Response(
                     content=response.content,
                     media_type="image/png",
@@ -1019,13 +1026,13 @@ async def generate_real_qr(salon_id: str):
                     }
                 )
             else:
-                logger.warning(f"⚠️ WhatsApp service returned {response.status_code} for {salon_id}")
-                raise Exception(f"WhatsApp service returned {response.status_code}")
+                logger.warning(f"⚠️ Unified service returned {response.status_code} for {salon_id} on port {salon_port}")
+                raise Exception(f"Unified service returned {response.status_code}")
                 
         except Exception as service_error:
-            logger.warning(f"⚠️ Could not get real QR from WhatsApp service: {service_error}")
+            logger.warning(f"⚠️ Could not get real QR from unified service: {service_error}")
             
-            # Fallback: Create a loading/connecting message
+            # Fallback: Create a service connecting message
             img = Image.new('RGB', (300, 300), color='white')
             draw = ImageDraw.Draw(img)
             
@@ -1034,7 +1041,7 @@ async def generate_real_qr(salon_id: str):
             except:
                 font = None
                 
-            error_text = f"Connecting to\n{salon_name}\n\nWhatsApp Web QR\nGenerating...\n\nPlease wait"
+            error_text = f"{salon_name}\n\nWhatsApp Web Service\nInitializing...\n\nPort: {salon_port}\nPlease refresh in\na moment"
             
             # Calculate text position (center)
             bbox = draw.textbbox((0, 0), error_text, font=font)

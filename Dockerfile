@@ -89,20 +89,17 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
 echo "✅ Virtual display started"\n\
 \n\
 # Set environment variables for Railway deployment\n\
-export WHATSAPP_SERVICE_URL="http://localhost:3000"\n\
+export WHATSAPP_SERVICE_URL="http://localhost:3005"  # Unified service main port\n\
 export BACKEND_URL="http://localhost:$PORT"\n\
 export BACKEND_PORT="$PORT"\n\
 \n\
-# Start PRODUCTION WhatsApp Web service in background\n\
-echo "📱 Starting Production WhatsApp Web service with real QR codes..."\n\
-(\n\
-  node whatsapp-service-production.js || {\n\
-    echo "❌ Production WhatsApp service failed, falling back to mock..."\n\
-    node whatsapp-service-mock.js\n\
-  }\n\
-) &\n\
+# Note: Unified service runs on ports 3005 (salon_a), 3006 (salon_b), 3007 (salon_c)\n\
+\n\
+# Start UNIFIED WhatsApp Web service in background (Railway-optimized)\n\
+echo "📱 Starting Unified Multi-Salon WhatsApp Web service for Railway deployment..."\n\
+node whatsapp-service-unified.js & \n\
 WHATSAPP_PID=$!\n\
-echo "✅ Production WhatsApp Web service started with PID: $WHATSAPP_PID on port 3000"\n\
+echo "✅ Unified WhatsApp Web service started with PID: $WHATSAPP_PID (ports 3005, 3006, 3007)"\n\
 \n\
 # Wait for WhatsApp services to initialize\n\
 echo "⏰ Waiting for WhatsApp services to initialize..."\n\
