@@ -24,7 +24,24 @@ check_service() {
             if [[ "$url" == *"/health"* ]]; then
                 response=$(curl -s "$url" 2>/dev/null)
                 if [[ $? -eq 0 ]]; then
-                    echo "  💡 Status: $(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)"
+                    # Extract status
+                    status=$(echo "$response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+                    echo "  💡 Status: $status"
+                    
+                    # Check for connection status (for WhatsApp services)
+                    connection_info=$(echo "$response" | grep -o '"connection_status":{[^}]*}')
+                    if [[ -n "$connection_info" ]]; then
+                        is_connected=$(echo "$connection_info" | grep -o '"is_connected":[^,]*' | cut -d':' -f2)
+                        phone_number=$(echo "$connection_info" | grep -o '"phone_number":"[^"]*"' | cut -d'"' -f4)
+                        connection_count=$(echo "$connection_info" | grep -o '"connection_count":[^,]*' | cut -d':' -f2)
+                        
+                        if [[ "$is_connected" == "true" && "$phone_number" != "null" ]]; then
+                            echo "  📱 WhatsApp: ✅ Connected ($phone_number)"
+                            echo "  🔢 Total connections: $connection_count"
+                        else
+                            echo "  📱 WhatsApp: ❌ Not connected (connections: $connection_count)"
+                        fi
+                    fi
                 fi
             fi
         else
@@ -37,6 +54,41 @@ check_service() {
     echo ""
 }
 
+# Check connection status specifically
+check_connection_status() {
+    local name=$1
+    local port=$2
+    local salon_id=$3
+    
+    echo "📱 Checking WhatsApp connection for $name..."
+    
+    local connection_url="http://localhost:$port/connection-status"
+    if curl -s "$connection_url" >/dev/null 2>&1; then
+        response=$(curl -s "$connection_url" 2>/dev/null)
+        if [[ $? -eq 0 ]]; then
+            is_connected=$(echo "$response" | grep -o '"is_connected":[^,]*' | cut -d':' -f2)
+            phone_number=$(echo "$response" | grep -o '"phone_number":"[^"]*"' | cut -d'"' -f4)
+            connected_at=$(echo "$response" | grep -o '"connected_at":"[^"]*"' | cut -d'"' -f4)
+            qr_needed=$(echo "$response" | grep -o '"qr_needed":[^,]*' | cut -d':' -f2)
+            
+            if [[ "$is_connected" == "true" && "$phone_number" != "null" ]]; then
+                echo "  ✅ Connected: $phone_number"
+                echo "  🕒 Since: $connected_at"
+                echo "  🎯 Action: Ready to receive messages"
+            elif [[ "$qr_needed" == "true" ]]; then
+                echo "  ❌ Not connected"
+                echo "  🎯 Action: Scan QR code at http://localhost:$port/qr"
+            else
+                echo "  ⏳ Initializing connection..."
+                echo "  🎯 Action: Wait for QR code generation"
+            fi
+        fi
+    else
+        echo "  ❌ Cannot check connection status"
+    fi
+    echo ""
+}
+
 # Check all services
 echo "📊 Service Health Check:"
 echo ""
@@ -45,6 +97,12 @@ check_service "Backend API" "http://localhost:8000/health" 8000
 check_service "Salon A WhatsApp" "http://localhost:3005/health" 3005  
 check_service "Salon B WhatsApp" "http://localhost:3006/health" 3006
 check_service "Salon C WhatsApp" "http://localhost:3007/health" 3007
+
+echo "🔗 WhatsApp Connection Details:"
+echo ""
+check_connection_status "Salon A (Downtown Beauty)" 3005 "salon_a"
+check_connection_status "Salon B (Uptown Hair)" 3006 "salon_b"
+check_connection_status "Salon C (Luxury Spa)" 3007 "salon_c"
 
 echo "🎯 Quick Links:"
 echo "📊 Backend Health: http://localhost:8000/health"
