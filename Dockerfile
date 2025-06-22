@@ -95,19 +95,16 @@ export SALON_C_PORT=3007\n\
 export WHATSAPP_SERVICE_URL="http://localhost:3005"\n\
 export BACKEND_URL="http://localhost:$PORT"\n\
 \n\
-# Start Unified Multi-Salon WhatsApp Web service in background\n\
-echo "🏢 Starting Unified Multi-Salon WhatsApp Web service..."\n\
-echo "  📱 Salon A (Downtown Beauty): Port 3005"\n\
-echo "  📱 Salon B (Uptown Hair Studio): Port 3006"\n\
-echo "  📱 Salon C (Luxury Spa & Salon): Port 3007"\n\
+# Start Railway-Optimized WhatsApp Web service in background\n\
+echo "📱 Starting Railway-Optimized WhatsApp Web service..."\n\
 (\n\
-  node whatsapp-service-unified.js || {\n\
-    echo "❌ Multi-Salon WhatsApp service failed to start, but continuing with FastAPI..."\n\
+  node whatsapp-service-railway.js || {\n\
+    echo "❌ Railway WhatsApp service failed to start, but continuing with FastAPI..."\n\
     exit 0\n\
   }\n\
 ) &\n\
 WHATSAPP_PID=$!\n\
-echo "✅ Multi-Salon WhatsApp Web service started with PID: $WHATSAPP_PID"\n\
+echo "✅ Railway WhatsApp Web service started with PID: $WHATSAPP_PID"\n\
 \n\
 # Wait for WhatsApp services to initialize\n\
 echo "⏰ Waiting for WhatsApp services to initialize..."\n\

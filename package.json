@@ -8,7 +8,8 @@
     "dev": "nodemon whatsapp-service.js",
     "unified": "node whatsapp-service-unified.js",
     "unified-dev": "nodemon whatsapp-service-unified.js",
-    "railway": "/app/start-railway.sh"
+    "railway": "node whatsapp-service-railway.js",
+    "railway-dev": "nodemon whatsapp-service-railway.js"
   },
   "engines": {
     "node": ">=18.0.0",
