@@ -266,7 +266,23 @@ async def root():
         "status": "running", 
         "message": "Smart WhatsApp Booking Bot is running",
         "whatsapp_service": whatsapp_status,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "multi_salon_system": {
+            "enabled": True,
+            "total_salons": 3,
+            "qr_endpoints": {
+                "directory": "/qr/directory",
+                "salon1": "/salon1/qr",
+                "salon2": "/salon2/qr", 
+                "salon3": "/salon3/qr",
+                "legacy": "/qr"
+            },
+            "salons": [
+                {"id": "salon_a", "name": "Downtown Beauty Salon", "phone": "+1234567890"},
+                {"id": "salon_b", "name": "Uptown Hair Studio", "phone": "+0987654321"},
+                {"id": "salon_c", "name": "Luxury Spa & Salon", "phone": "+1122334455"}
+            ]
+        }
     }
 
 @app.get("/health")
@@ -547,9 +563,10 @@ async def whatsapp_webhook_legacy(request: Request):
 
 @app.get("/qr", response_class=HTMLResponse)
 async def qr_code_page():
-    """Proxy QR code page from WhatsApp service"""
+    """Proxy QR code page from WhatsApp service (legacy - defaults to salon_a)"""
     try:
-        whatsapp_url = settings.WHATSAPP_SERVICE_URL
+        # Default to salon_a for legacy compatibility
+        whatsapp_url = settings.SALON_A_WHATSAPP_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
         return HTMLResponse(content=response.text, status_code=response.status_code)
     except Exception as e:
@@ -561,6 +578,75 @@ async def qr_code_page():
             <body style="font-family: Arial; text-align: center; padding: 50px;">
                 <h1>🔄 WhatsApp Service Starting...</h1>
                 <p>The WhatsApp service is still initializing.</p>
+                <p>Please wait a moment and refresh this page.</p>
+                <button onclick="window.location.reload()">🔄 Refresh</button>
+                <script>setTimeout(() => window.location.reload(), 10000);</script>
+            </body>
+            </html>
+        """, status_code=503)
+
+@app.get("/salon1/qr", response_class=HTMLResponse)
+async def qr_code_salon_a():
+    """QR code page for Salon A (Downtown Beauty Salon)"""
+    try:
+        whatsapp_url = settings.SALON_A_WHATSAPP_URL
+        response = requests.get(f"{whatsapp_url}/qr", timeout=10)
+        return HTMLResponse(content=response.text, status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error proxying QR page for Salon A: {e}")
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Downtown Beauty Salon - QR Code</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1>🏪 Downtown Beauty Salon</h1>
+                <h2>🔄 WhatsApp Service Starting...</h2>
+                <p>Please wait a moment and refresh this page.</p>
+                <button onclick="window.location.reload()">🔄 Refresh</button>
+                <script>setTimeout(() => window.location.reload(), 10000);</script>
+            </body>
+            </html>
+        """, status_code=503)
+
+@app.get("/salon2/qr", response_class=HTMLResponse)
+async def qr_code_salon_b():
+    """QR code page for Salon B (Uptown Hair Studio)"""
+    try:
+        whatsapp_url = settings.SALON_B_WHATSAPP_URL
+        response = requests.get(f"{whatsapp_url}/qr", timeout=10)
+        return HTMLResponse(content=response.text, status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error proxying QR page for Salon B: {e}")
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Uptown Hair Studio - QR Code</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1>💇 Uptown Hair Studio</h1>
+                <h2>🔄 WhatsApp Service Starting...</h2>
+                <p>Please wait a moment and refresh this page.</p>
+                <button onclick="window.location.reload()">🔄 Refresh</button>
+                <script>setTimeout(() => window.location.reload(), 10000);</script>
+            </body>
+            </html>
+        """, status_code=503)
+
+@app.get("/salon3/qr", response_class=HTMLResponse)
+async def qr_code_salon_c():
+    """QR code page for Salon C (Luxury Spa & Salon)"""
+    try:
+        whatsapp_url = settings.SALON_C_WHATSAPP_URL
+        response = requests.get(f"{whatsapp_url}/qr", timeout=10)
+        return HTMLResponse(content=response.text, status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error proxying QR page for Salon C: {e}")
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Luxury Spa & Salon - QR Code</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px;">
+                <h1>✨ Luxury Spa & Salon</h1>
+                <h2>🔄 WhatsApp Service Starting...</h2>
                 <p>Please wait a moment and refresh this page.</p>
                 <button onclick="window.location.reload()">🔄 Refresh</button>
                 <script>setTimeout(() => window.location.reload(), 10000);</script>
@@ -603,6 +689,62 @@ async def qr_code_simple():
             </body>
             </html>
         """, status_code=503)
+
+@app.get("/qr/directory", response_class=HTMLResponse)
+async def qr_directory():
+    """Directory of all salon QR codes"""
+    return HTMLResponse(content=f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>WhatsApp QR Codes - All Salons</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }}
+                .container {{ max-width: 800px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px); }}
+                .salon-card {{ background: rgba(255,255,255,0.2); margin: 20px 0; padding: 20px; border-radius: 10px; }}
+                .qr-btn {{ display: inline-block; background: #4CAF50; color: white; padding: 15px 30px; margin: 10px; text-decoration: none; border-radius: 8px; font-weight: bold; transition: all 0.3s; }}
+                .qr-btn:hover {{ background: #45a049; transform: translateY(-2px); }}
+                h1 {{ margin-bottom: 30px; font-size: 2.5em; }}
+                h2 {{ color: #ffd700; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>📱 WhatsApp QR Codes</h1>
+                <p>Choose your salon to get the WhatsApp QR code:</p>
+                
+                <div class="salon-card">
+                    <h2>🏪 Downtown Beauty Salon</h2>
+                    <p>Phone: +1234567890</p>
+                    <a href="/salon1/qr" class="qr-btn">📱 Get QR Code</a>
+                </div>
+                
+                <div class="salon-card">
+                    <h2>💇 Uptown Hair Studio</h2>
+                    <p>Phone: +0987654321</p>
+                    <a href="/salon2/qr" class="qr-btn">📱 Get QR Code</a>
+                </div>
+                
+                <div class="salon-card">
+                    <h2>✨ Luxury Spa & Salon</h2>
+                    <p>Phone: +1122334455</p>
+                    <a href="/salon3/qr" class="qr-btn">📱 Get QR Code</a>
+                </div>
+                
+                <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                    <h3>📋 Instructions:</h3>
+                    <ol style="text-align: left; max-width: 400px; margin: 0 auto;">
+                        <li>Click on your salon's QR code button</li>
+                        <li>Open WhatsApp on your phone</li>
+                        <li>Go to Settings > Linked Devices</li>
+                        <li>Tap "Link a Device"</li>
+                        <li>Scan the QR code from your browser</li>
+                    </ol>
+                </div>
+            </div>
+        </body>
+        </html>
+    """)
 
 if __name__ == "__main__":
     import uvicorn
