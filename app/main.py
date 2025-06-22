@@ -8,6 +8,10 @@ import logging
 import re
 import requests
 import os
+import qrcode
+import io
+import base64
+from PIL import Image
 
 from app.services.firestore import (
     init_default_data,
@@ -647,8 +651,10 @@ async def qr_code_page():
                         <h1>📱 Multi-Salon WhatsApp System</h1>
                         
                         <div class="mock-notice">
-                            <h3>✅ System Ready - Mock Mode Active</h3>
-                            <p>All salon booking systems are operational. WhatsApp integration is simulated for Railway deployment. Each salon has its own booking flow and services.</p>
+                            <h3>⚠️ Important: Demo Mode Active</h3>
+                            <p><strong>Current Status</strong>: This is a demonstration deployment showing system capabilities.</p>
+                            <p><strong>For Real WhatsApp QR Codes</strong>: Run <code>./start-real-whatsapp.sh</code> locally to get actual scannable QR codes.</p>
+                            <p><strong>All Features Work</strong>: Booking system, database, multi-salon routing are fully operational.</p>
                         </div>
                         
                         <h2>🏢 Available Salons</h2>
@@ -661,7 +667,7 @@ async def qr_code_page():
                             <p style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 5px; margin: 10px 0; font-size: 0.9em;">
                                 <strong>Services:</strong> Haircut, Coloring, Beard Trim
                             </p>
-                            <a href="/salon1/qr" class="qr-link">📱 View Salon Page</a>
+                            <a href="/qr-web/salon_a" class="qr-link">📱 Get WhatsApp QR Code</a>
                         </div>
                         
                         <div class="salon-card">
@@ -671,7 +677,7 @@ async def qr_code_page():
                             <p style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 5px; margin: 10px 0; font-size: 0.9em;">
                                 <strong>Services:</strong> Styling, Treatment, Cuts
                             </p>
-                            <a href="/salon2/qr" class="qr-link">📱 View Salon Page</a>
+                            <a href="/qr-web/salon_b" class="qr-link">📱 Get WhatsApp QR Code</a>
                         </div>
                         
                         <div class="salon-card">
@@ -681,7 +687,7 @@ async def qr_code_page():
                             <p style="background: rgba(255,255,255,0.2); padding: 8px; border-radius: 5px; margin: 10px 0; font-size: 0.9em;">
                                 <strong>Services:</strong> Spa, Massage, Manicure
                             </p>
-                            <a href="/salon3/qr" class="qr-link">📱 View Salon Page</a>
+                            <a href="/qr-web/salon_c" class="qr-link">📱 Get WhatsApp QR Code</a>
                         </div>
                         
                         <div class="instructions">
@@ -937,19 +943,19 @@ async def qr_directory():
                 <div class="salon-card">
                     <h2>🏪 Downtown Beauty Salon</h2>
                     <p>Phone: +1234567890</p>
-                    <a href="/salon1/qr" class="qr-btn">📱 Get QR Code</a>
+                    <a href="/qr-web/salon_a" class="qr-btn">📱 Get WhatsApp QR Code</a>
                 </div>
                 
                 <div class="salon-card">
                     <h2>💇 Uptown Hair Studio</h2>
                     <p>Phone: +0987654321</p>
-                    <a href="/salon2/qr" class="qr-btn">📱 Get QR Code</a>
+                    <a href="/qr-web/salon_b" class="qr-btn">📱 Get WhatsApp QR Code</a>
                 </div>
                 
                 <div class="salon-card">
                     <h2>✨ Luxury Spa & Salon</h2>
                     <p>Phone: +1122334455</p>
-                    <a href="/salon3/qr" class="qr-btn">📱 Get QR Code</a>
+                    <a href="/qr-web/salon_c" class="qr-btn">📱 Get WhatsApp QR Code</a>
                 </div>
                 
                 <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
@@ -1034,6 +1040,193 @@ def get_most_recent_salon_access() -> Optional[str]:
         return latest_salon
     
     return None
+
+@app.get("/qr-real/{salon_id}")
+async def generate_real_qr(salon_id: str):
+    """Generate a real QR code for WhatsApp Web connection"""
+    try:
+        # Log QR access
+        log_qr_access(salon_id, "web")
+        
+        # For now, generate a QR code that points to a WhatsApp Web URL
+        # In production, this would be replaced with actual WhatsApp Web.js session QR
+        whatsapp_web_url = f"https://web.whatsapp.com/?salon={salon_id}&redirect=true"
+        
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(whatsapp_web_url)
+        qr.make(fit=True)
+        
+        # Create QR code image
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to bytes
+        img_buffer = io.BytesIO()
+        img.save(img_buffer, format='PNG')
+        img_buffer.seek(0)
+        
+        return Response(content=img_buffer.getvalue(), media_type="image/png")
+        
+    except Exception as e:
+        logger.error(f"Error generating real QR code: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate QR code")
+
+@app.get("/qr-web/{salon_id}", response_class=HTMLResponse)
+async def qr_web_page(salon_id: str):
+    """Generate a web page with real scannable QR code for WhatsApp"""
+    try:
+        # Get salon info
+        salon_names = {
+            "salon_a": "Downtown Beauty Salon",
+            "salon_b": "Uptown Hair Studio", 
+            "salon_c": "Luxury Spa & Salon"
+        }
+        salon_phones = {
+            "salon_a": "+1234567890",
+            "salon_b": "+0987654321",
+            "salon_c": "+1122334455"
+        }
+        salon_colors = {
+            "salon_a": "#4CAF50",
+            "salon_b": "#2196F3", 
+            "salon_c": "#9C27B0"
+        }
+        
+        salon_name = salon_names.get(salon_id, "Unknown Salon")
+        salon_phone = salon_phones.get(salon_id, "Unknown")
+        salon_color = salon_colors.get(salon_id, "#4CAF50")
+        
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>📱 {salon_name} - WhatsApp QR Code</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body {{ 
+                        font-family: Arial, sans-serif; 
+                        text-align: center; 
+                        padding: 30px; 
+                        background: linear-gradient(135deg, {salon_color} 0%, {salon_color}CC 100%); 
+                        color: white; 
+                        min-height: 100vh; 
+                        margin: 0; 
+                    }}
+                    .container {{ 
+                        max-width: 500px; 
+                        margin: 0 auto; 
+                        background: rgba(255,255,255,0.1); 
+                        padding: 30px; 
+                        border-radius: 15px; 
+                        backdrop-filter: blur(10px); 
+                    }}
+                    .qr-container {{ 
+                        background: white; 
+                        padding: 20px; 
+                        border-radius: 10px; 
+                        margin: 20px auto; 
+                        max-width: 300px; 
+                        color: black; 
+                    }}
+                    h1 {{ margin-bottom: 20px; font-size: 2em; }}
+                    .phone {{ font-size: 1.2em; margin: 15px 0; font-weight: bold; color: #ffd700; }}
+                    .instructions {{ 
+                        background: rgba(255,255,255,0.15); 
+                        padding: 20px; 
+                        border-radius: 10px; 
+                        margin-top: 30px; 
+                        text-align: left;
+                    }}
+                    .warning {{ 
+                        background: rgba(255,193,7,0.2); 
+                        color: #ffc107; 
+                        padding: 15px; 
+                        border-radius: 8px; 
+                        margin: 20px 0; 
+                        border: 2px solid #ffc107; 
+                    }}
+                    .qr-img {{ 
+                        max-width: 100%; 
+                        height: auto; 
+                        border-radius: 8px;
+                    }}
+                    .refresh-btn {{
+                        background: #25D366;
+                        color: white;
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        margin-top: 15px;
+                        font-size: 16px;
+                    }}
+                    .refresh-btn:hover {{ background: #128C7E; }}
+                </style>
+                <script>
+                    function refreshQR() {{
+                        document.getElementById('qr-image').src = '/qr-real/{salon_id}?' + new Date().getTime();
+                    }}
+                    
+                    // Auto refresh QR every 30 seconds
+                    setInterval(refreshQR, 30000);
+                </script>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>📱 {salon_name}</h1>
+                    <div class="phone">📞 {salon_phone}</div>
+                    
+                    <div class="warning">
+                        <h3>⚠️ Important Notice</h3>
+                        <p>This is a <strong>demo QR code</strong>. For real WhatsApp integration, you need to set up WhatsApp Web.js service locally.</p>
+                    </div>
+                    
+                    <div class="qr-container">
+                        <h3>📱 Scan with WhatsApp</h3>
+                        <img id="qr-image" src="/qr-real/{salon_id}" alt="WhatsApp QR Code" class="qr-img">
+                        <p style="color: #666; margin-top: 10px; font-size: 14px;">
+                            Scan this QR code with WhatsApp
+                        </p>
+                        <button class="refresh-btn" onclick="refreshQR()">🔄 Refresh QR</button>
+                    </div>
+                    
+                    <div class="instructions">
+                        <h3>📋 How to Connect:</h3>
+                        <ol>
+                            <li><strong>Open WhatsApp</strong> on your phone</li>
+                            <li><strong>Go to Settings</strong> → Linked Devices</li>
+                            <li><strong>Tap "Link a Device"</strong></li>
+                            <li><strong>Scan the QR code</strong> above</li>
+                            <li><strong>Send "hi"</strong> to start booking at {salon_name}</li>
+                        </ol>
+                        
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-top: 15px;">
+                            <h4>🎯 What happens next:</h4>
+                            <ul>
+                                <li>You'll be automatically connected to {salon_name}</li>
+                                <li>Send "hi" to see our services and book appointments</li>
+                                <li>Our booking system will guide you through the process</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        """)
+        
+    except Exception as e:
+        logger.error(f"Error generating QR web page: {e}")
+        return HTMLResponse(content=f"""
+            <html><body style="text-align:center;padding:50px;">
+                <h1>Error generating QR code</h1>
+                <p>Please try again later</p>
+            </body></html>
+        """, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

@@ -229,4 +229,4 @@ chrome/
 googlechrome.dmg
 
 # Token files
-tokens/ 
+tokens/ sessions/
