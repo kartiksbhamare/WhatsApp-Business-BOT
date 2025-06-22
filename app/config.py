@@ -66,20 +66,22 @@ class Settings(BaseSettings):
     def salon_phone_mapping(self) -> Dict[str, str]:
         """Get phone to salon ID mapping"""
         return {
-            self.SALON_A_PHONE.replace("+", "").replace("@c.us", ""): "salon_a",
-            self.SALON_B_PHONE.replace("+", "").replace("@c.us", ""): "salon_b", 
-            self.SALON_C_PHONE.replace("+", "").replace("@c.us", ""): "salon_c",
-            # Add default salon for backward compatibility
-            "default": "default"
+            # Remove the + from phone numbers for matching
+            "1234567890": "salon_a",        # Downtown Beauty Salon
+            "0987654321": "salon_b",        # Uptown Hair Studio  
+            "1122334455": "salon_c",        # Luxury Spa & Salon
+            "919307748525": "salon_a",      # Your current phone number -> salon_a
+            # Add default mapping for backward compatibility
+            "default": "salon_a"
         }
     
     @property
     def salon_whatsapp_mapping(self) -> Dict[str, str]:
-        """Get salon ID to WhatsApp service URL mapping"""
+        """Get salon ID to WhatsApp service URL mapping - all use main service for Railway deployment"""
         return {
-            "salon_a": self.SALON_A_WHATSAPP_URL,
-            "salon_b": self.SALON_B_WHATSAPP_URL,
-            "salon_c": self.SALON_C_WHATSAPP_URL,
+            "salon_a": self.WHATSAPP_SERVICE_URL,
+            "salon_b": self.WHATSAPP_SERVICE_URL,
+            "salon_c": self.WHATSAPP_SERVICE_URL,
             # Add default salon for backward compatibility
             "default": self.WHATSAPP_SERVICE_URL
         }
