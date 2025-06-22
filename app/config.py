@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     def get_salon_from_phone(self, to_phone: str) -> str:
         """Get salon ID from receiving phone number"""
         cleaned_phone = to_phone.replace("+", "").replace("@c.us", "")
-        return self.salon_phone_mapping.get(cleaned_phone, "default")  # Default to 'default' for backward compatibility
+        return self.salon_phone_mapping.get(cleaned_phone, "salon_a")  # Default to 'salon_a' which exists in database
     
     def get_whatsapp_url_for_salon(self, salon_id: str) -> str:
         """Get WhatsApp service URL for a specific salon"""
