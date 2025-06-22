@@ -9,7 +9,9 @@
     "unified": "node whatsapp-service-unified.js",
     "unified-dev": "nodemon whatsapp-service-unified.js",
     "railway": "node whatsapp-service-railway.js",
-    "railway-dev": "nodemon whatsapp-service-railway.js"
+    "railway-dev": "nodemon whatsapp-service-railway.js",
+    "mock": "node whatsapp-service-mock.js",
+    "mock-dev": "nodemon whatsapp-service-mock.js"
   },
   "engines": {
     "node": ">=18.0.0",

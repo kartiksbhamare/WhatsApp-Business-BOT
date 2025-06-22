@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # WhatsApp Web Service Settings - with backward compatibility
-    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Railway will use PORT env variable
+    WHATSAPP_SERVICE_URL: str = f"http://localhost:{os.getenv('PORT', '3000')}"  # Use same port as Railway service
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
     # Multi-Salon WhatsApp Service URLs

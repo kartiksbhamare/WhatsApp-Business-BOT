@@ -95,16 +95,16 @@ export SALON_C_PORT=3007\n\
 export WHATSAPP_SERVICE_URL="http://localhost:3005"\n\
 export BACKEND_URL="http://localhost:$PORT"\n\
 \n\
-# Start Railway-Optimized WhatsApp Web service in background\n\
-echo "📱 Starting Railway-Optimized WhatsApp Web service..."\n\
+# Start Mock WhatsApp Web service in background (no Puppeteer issues)\n\
+echo "📱 Starting Mock WhatsApp Web service (Railway-safe)..."\n\
 (\n\
-  node whatsapp-service-railway.js || {\n\
-    echo "❌ Railway WhatsApp service failed to start, but continuing with FastAPI..."\n\
+  node whatsapp-service-mock.js || {\n\
+    echo "❌ Mock WhatsApp service failed to start, but continuing with FastAPI..."\n\
     exit 0\n\
   }\n\
 ) &\n\
 WHATSAPP_PID=$!\n\
-echo "✅ Railway WhatsApp Web service started with PID: $WHATSAPP_PID"\n\
+echo "✅ Mock WhatsApp Web service started with PID: $WHATSAPP_PID"\n\
 \n\
 # Wait for WhatsApp services to initialize\n\
 echo "⏰ Waiting for WhatsApp services to initialize..."\n\
