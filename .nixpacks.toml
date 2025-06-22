@@ -1,0 +1,3 @@
+# Disable Nixpacks - Use Dockerfile instead
+[build]
+dockerfile = true 

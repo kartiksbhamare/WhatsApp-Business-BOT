@@ -1,0 +1,28 @@
+{
+  "name": "whatsapp-web-service",
+  "version": "1.0.0",
+  "description": "WhatsApp Web service for WhatsApp messaging using whatsapp-web.js",
+  "main": "whatsapp-service.js",
+  "scripts": {
+    "start": "node whatsapp-service.js",
+    "dev": "nodemon whatsapp-service.js",
+    "unified": "node whatsapp-service-unified.js",
+    "unified-dev": "nodemon whatsapp-service-unified.js",
+    "railway": "/app/start-railway.sh"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "node-fetch": "^3.3.2",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.30.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
