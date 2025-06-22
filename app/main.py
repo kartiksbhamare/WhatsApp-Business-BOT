@@ -563,14 +563,145 @@ async def whatsapp_webhook_legacy(request: Request):
 
 @app.get("/qr", response_class=HTMLResponse)
 async def qr_code_page():
-    """Proxy QR code page from WhatsApp service (legacy - defaults to main service)"""
+    """Main QR code page showing all salons with their QR codes"""
     try:
-        # Use the main working WhatsApp service
+        # Check if WhatsApp is connected
         whatsapp_url = settings.WHATSAPP_SERVICE_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
-        return HTMLResponse(content=response.text, status_code=response.status_code)
+        
+        if response.status_code == 200 and "Connected Successfully" in response.text:
+            # WhatsApp is already connected - show connected status with salon info
+            return HTMLResponse(content=f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Multi-Salon WhatsApp Business Bot - Connected</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; text-align: center; padding: 30px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; }}
+                        .container {{ max-width: 900px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px); }}
+                        .salon-card {{ background: rgba(255,255,255,0.2); margin: 15px; padding: 20px; border-radius: 10px; display: inline-block; width: 250px; vertical-align: top; }}
+                        .status {{ background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px; margin-bottom: 30px; }}
+                        h1 {{ margin-bottom: 20px; font-size: 2.5em; }}
+                        h2 {{ color: #ffd700; margin-bottom: 15px; }}
+                        .phone {{ font-size: 1.1em; margin: 10px 0; opacity: 0.9; }}
+                        .instructions {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-top: 30px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>📱 Multi-Salon WhatsApp Bot</h1>
+                        
+                        <div class="status">
+                            <h2>✅ WhatsApp Connected Successfully!</h2>
+                            <p>Your Multi-Salon WhatsApp Business Bot is now active and ready to receive messages.</p>
+                            <p><strong>Status:</strong> 🟢 Online and Ready for All Salons</p>
+                        </div>
+                        
+                        <h2>🏢 Available Salons</h2>
+                        <p>All salons are connected and ready to receive bookings!</p>
+                        
+                        <div class="salon-card">
+                            <h3>🏪 Downtown Beauty Salon</h3>
+                            <div class="phone">📞 +1234567890</div>
+                            <p>✅ Connected & Ready</p>
+                        </div>
+                        
+                        <div class="salon-card">
+                            <h3>💇 Uptown Hair Studio</h3>
+                            <div class="phone">📞 +0987654321</div>
+                            <p>✅ Connected & Ready</p>
+                        </div>
+                        
+                        <div class="salon-card">
+                            <h3>✨ Luxury Spa & Salon</h3>
+                            <div class="phone">📞 +1122334455</div>
+                            <p>✅ Connected & Ready</p>
+                        </div>
+                        
+                        <div class="instructions">
+                            <h3>🎯 How to Use Your Multi-Salon Bot:</h3>
+                            <ol style="text-align: left; max-width: 500px; margin: 0 auto;">
+                                <li><strong>Send "hi"</strong> to any salon's WhatsApp number</li>
+                                <li><strong>Choose a service</strong> from the salon's menu</li>
+                                <li><strong>Select a barber</strong> and time slot</li>
+                                <li><strong>Confirm your booking</strong> ✨</li>
+                            </ol>
+                            <p style="margin-top: 20px;"><strong>Messages are automatically routed to the correct salon!</strong></p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            """)
+        else:
+            # WhatsApp needs to be connected - show QR codes for all salons
+            return HTMLResponse(content=f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Multi-Salon WhatsApp QR Codes</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }}
+                        .container {{ max-width: 1000px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px); }}
+                        .salon-section {{ background: rgba(255,255,255,0.2); margin: 20px 0; padding: 25px; border-radius: 10px; }}
+                        .qr-container {{ background: white; padding: 20px; border-radius: 10px; margin: 15px auto; max-width: 400px; }}
+                        .qr-code {{ width: 100%; max-width: 300px; height: auto; }}
+                        h1 {{ margin-bottom: 30px; font-size: 2.5em; }}
+                        h2 {{ color: #ffd700; margin-bottom: 15px; }}
+                        .phone {{ font-size: 1.2em; margin: 10px 0; }}
+                        .instructions {{ background: rgba(255,255,255,0.15); padding: 20px; border-radius: 10px; margin-top: 30px; }}
+                        .notice {{ background: rgba(255,215,0,0.2); color: #ffd700; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px solid #ffd700; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>📱 Multi-Salon WhatsApp QR Codes</h1>
+                        
+                        <div class="notice">
+                            <h3>🔗 Important: Single QR for All Salons</h3>
+                            <p>All salons share the same WhatsApp connection for efficiency. Messages are automatically routed to the correct salon based on context. Scan any QR code below to connect all salons!</p>
+                        </div>
+                        
+                        <div class="salon-section">
+                            <h2>🏪 Downtown Beauty Salon</h2>
+                            <div class="phone">📞 +1234567890</div>
+                            <div class="qr-container">
+                                <iframe src="/qr-simple" width="100%" height="350" frameborder="0"></iframe>
+                            </div>
+                        </div>
+                        
+                        <div class="salon-section">
+                            <h2>💇 Uptown Hair Studio</h2>
+                            <div class="phone">📞 +0987654321</div>
+                            <div class="qr-container">
+                                <iframe src="/qr-simple" width="100%" height="350" frameborder="0"></iframe>
+                            </div>
+                        </div>
+                        
+                        <div class="salon-section">
+                            <h2>✨ Luxury Spa & Salon</h2>
+                            <div class="phone">📞 +1122334455</div>
+                            <div class="qr-container">
+                                <iframe src="/qr-simple" width="100%" height="350" frameborder="0"></iframe>
+                            </div>
+                        </div>
+                        
+                        <div class="instructions">
+                            <h3>📋 Instructions:</h3>
+                            <ol style="text-align: left; max-width: 500px; margin: 0 auto;">
+                                <li>Choose any salon and scan its QR code with WhatsApp</li>
+                                <li>Open WhatsApp → Settings → Linked Devices</li>
+                                <li>Tap "Link a Device" and scan the QR code</li>
+                                <li>Once connected, all salons will be active!</li>
+                                <li>Send "hi" to start booking at any salon</li>
+                            </ol>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            """)
+            
     except Exception as e:
-        logger.error(f"Error proxying QR page: {e}")
+        logger.error(f"Error in main QR page: {e}")
         return HTMLResponse(content=f"""
             <!DOCTYPE html>
             <html>
