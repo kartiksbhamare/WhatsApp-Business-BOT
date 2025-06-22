@@ -35,12 +35,21 @@ This implementation supports **multiple salons** with a single backend and multi
 ./check-multi-salon-status.sh
 ```
 
-### 3. **Connect WhatsApp Numbers**
+### 3. **Manage Connections**
+```bash
+# Check which salons need QR codes
+./manage-connections.sh status
+
+# Show QR links for unconnected salons only  
+./manage-connections.sh qr
+```
+
+### 4. **Connect WhatsApp Numbers**
 - **Salon A**: http://localhost:3005/qr
 - **Salon B**: http://localhost:3006/qr  
 - **Salon C**: http://localhost:3007/qr
 
-### 4. **Stop All Services**
+### 5. **Stop All Services**
 ```bash
 ./stop-multi-salon-services.sh
 ```
@@ -282,6 +291,105 @@ For issues or questions:
 3. Verify configuration in `app/config.py`
 4. Test API endpoints manually
 5. Check WhatsApp service connectivity
+
+## 🔗 Connection Tracking & Management
+
+### **Smart Connection Status**
+Each salon's WhatsApp connection is now tracked and persisted:
+
+- ✅ **Connection Status**: Automatically stored when WhatsApp connects
+- 📱 **Phone Number**: Linked WhatsApp number recorded  
+- 🕒 **Connection History**: Timestamps and connection counts tracked
+- 🚫 **No Duplicate QR Codes**: Already connected salons show status instead of QR codes
+
+### **Connection Status Files**
+Each salon creates a status file:
+```
+connection_status_salon_a.json
+connection_status_salon_b.json  
+connection_status_salon_c.json
+```
+
+### **Connection Management Commands**
+
+#### **Check All Connection Status**
+```bash
+./manage-connections.sh status
+# or
+./manage-connections.sh s
+```
+
+#### **Show QR Codes for Unconnected Salons Only**
+```bash
+./manage-connections.sh qr
+# or  
+./manage-connections.sh q
+```
+
+#### **Reset Specific Salon Connection**
+```bash
+./manage-connections.sh reset salon_a
+./manage-connections.sh reset salon_b
+./manage-connections.sh reset salon_c
+```
+
+#### **Reset All Salon Connections**
+```bash
+./manage-connections.sh reset-all
+```
+
+#### **Get Help**
+```bash
+./manage-connections.sh help
+```
+
+### **Connection Behavior**
+
+**🟢 Already Connected Salon:**
+- Shows "✅ WhatsApp Already Connected!" page
+- Displays connection details (phone, time connected, etc.)
+- No QR code generated (saves time and confusion)
+- Option to reset connection if needed
+
+**🔴 Unconnected Salon:**
+- Shows QR code for scanning
+- Tracks QR generation count
+- Stores connection when successfully linked
+
+**⚪ First Time Setup:**
+- No previous connection history
+- Generates QR code for initial connection
+- Creates connection status file when connected
+
+### **API Endpoints for Connection Management**
+
+```bash
+# Check connection status for specific salon
+GET http://localhost:3005/connection-status  # Salon A
+GET http://localhost:3006/connection-status  # Salon B  
+GET http://localhost:3007/connection-status  # Salon C
+
+# Reset connection for specific salon
+POST http://localhost:3005/reset-connection  # Salon A
+POST http://localhost:3006/reset-connection  # Salon B
+POST http://localhost:3007/reset-connection  # Salon C
+```
+
+### **Connection Status Response Example**
+```json
+{
+  "salon_id": "salon_a",
+  "salon_name": "Downtown Beauty Salon",
+  "is_connected": true,
+  "phone_number": "1234567890",
+  "connected_at": "2024-01-20T10:30:00.000Z",
+  "last_seen": "2024-01-20T15:45:00.000Z", 
+  "connection_count": 3,
+  "qr_generated_count": 5,
+  "current_status": "connected",
+  "qr_needed": false
+}
+```
 
 ---
 
