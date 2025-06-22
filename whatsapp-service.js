@@ -260,6 +260,17 @@ async function initializeWhatsAppClient() {
         client.on('message', async (message) => {
             console.log('📨 Received message:', message.body);
             console.log('📱 From phone:', message.from);
+            
+            // Get contact information
+            let contactName = 'Unknown';
+            try {
+                const contact = await message.getContact();
+                contactName = contact.pushname || contact.name || contact.formattedName || 'Unknown';
+                console.log('👤 Contact name:', contactName);
+            } catch (error) {
+                console.log('⚠️ Could not get contact name:', error.message);
+            }
+            
             console.log('📋 Message details:', {
                 from: message.from,
                 to: message.to,
@@ -267,12 +278,13 @@ async function initializeWhatsAppClient() {
                 type: message.type,
                 timestamp: message.timestamp,
                 id: message.id._serialized,
-                isGroupMsg: message.from.includes('@g.us')
+                isGroupMsg: message.from.includes('@g.us'),
+                contactName: contactName
             });
             
             // Forward message to FastAPI backend
             try {
-                await forwardMessageToBackend(message);
+                await forwardMessageToBackend(message, contactName);
             } catch (error) {
                 console.error('❌ Error forwarding message to backend:', error);
             }
@@ -321,7 +333,7 @@ async function initializeWhatsAppClient() {
 }
 
 // Forward message to FastAPI backend
-async function forwardMessageToBackend(message) {
+async function forwardMessageToBackend(message, contactName) {
     try {
         const messageData = {
             from: message.from,
@@ -331,7 +343,8 @@ async function forwardMessageToBackend(message) {
             timestamp: message.timestamp,
             id: message.id._serialized,
             isGroupMsg: message.from.includes('@g.us'),
-            author: message.author || message.from
+            author: message.author || message.from,
+            contactName: contactName
         };
 
         // Use localhost for internal communication in Railway

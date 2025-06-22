@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, HTTPException, Form, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 import re
@@ -50,7 +50,9 @@ def get_session_data(phone: str) -> Dict:
             "step": "service",
             "service": None,
             "barber": None,
-            "time_slot": None
+            "date": None,
+            "time_slot": None,
+            "contact_name": None
         }
     return sessions[phone]
 
@@ -289,8 +291,9 @@ async def whatsapp_webhook(request: Request):
         
         message = data.get("body", "").lower().strip()
         phone = data.get("from", "").replace("@c.us", "").replace("@g.us", "")
+        contact_name = data.get("contactName", "Unknown")  # Extract contact name
         
-        logger.info(f"📱 Processing message: '{message}' from phone: {phone}")
+        logger.info(f"📱 Processing message: '{message}' from phone: {phone}, contact: {contact_name}")
         
         # Skip group messages
         if data.get("isGroupMsg", False) or "@g.us" in data.get("from", ""):
@@ -314,9 +317,11 @@ async def whatsapp_webhook(request: Request):
                 if message in ["restart", "start"]:
                     clear_session(phone)
                     session = get_session_data(phone)
+                # Store contact name in session
+                session["contact_name"] = contact_name
                 services = get_all_services()
-                service_list = "\n".join([f"{s.id}. {s.name} (${s.price}, {s.duration} mins)" for s in services])
-                reply_message = f"Welcome to our Salon! Here are our services:\n\n{service_list}\n\nPlease enter the number of the service you'd like to book."
+                service_list = "\n".join([f"{s.id}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for s in services])
+                reply_message = f"👋 Welcome to our Salon! ✨\n\nHere are our services:\n\n{service_list}\n\n📝 Please enter the number of the service you'd like to book."
             
             elif session["step"] == "service" and message.isdigit():
                 logger.info(f"🔢 Processing service selection: {message}")
@@ -324,16 +329,16 @@ async def whatsapp_webhook(request: Request):
                 if service:
                     barbers = get_barbers_for_service(service.id)
                     if not barbers:
-                        reply_message = "Sorry, no barbers are currently available for this service."
+                        reply_message = "😔 Sorry, no barbers are currently available for this service. Please try another service or contact us directly."
                     else:
                         session["service"] = service.id
                         session["step"] = "barber"
-                        barber_list = "\n".join([f"{i+1}. {b.name}" for i, b in enumerate(barbers)])
-                        reply_message = f"You've selected {service.name}. Please choose your preferred stylist:\n\n{barber_list}"
+                        barber_list = "\n".join([f"{i+1}. ✂️ {b.name}" for i, b in enumerate(barbers)])
+                        reply_message = f"✅ You've selected {service.name}!\n\n👨‍💼 Please choose your preferred stylist:\n\n{barber_list}"
                 else:
                     services = get_all_services()
-                    service_list = "\n".join([f"{s.id}. {s.name} (${s.price}, {s.duration} mins)" for s in services])
-                    reply_message = f"Invalid service number. Please choose from:\n\n{service_list}"
+                    service_list = "\n".join([f"{s.id}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for s in services])
+                    reply_message = f"❌ Invalid service number. Please choose from:\n\n{service_list}"
                 
             elif session["step"] == "barber" and message.isdigit():
                 logger.info(f"✂️ Processing barber selection: {message}")
@@ -341,26 +346,66 @@ async def whatsapp_webhook(request: Request):
                     barbers = get_barbers_for_service(session["service"])
                     selected_barber = barbers[int(message) - 1]
                     session["barber"] = selected_barber.name
+                    session["step"] = "date"
+                    
+                    # Show date options (today and tomorrow)
+                    today = datetime.now()
+                    tomorrow = today + timedelta(days=1)
+                    
+                    today_str = today.strftime("%A, %B %d")
+                    tomorrow_str = tomorrow.strftime("%A, %B %d")
+                    
+                    reply_message = f"🎉 Great! You've selected ✂️ {selected_barber.name}.\n\n📅 Please choose your preferred date:\n\n1. 📅 Today ({today_str})\n2. 🌅 Tomorrow ({tomorrow_str})"
+                except (IndexError, ValueError):
+                    reply_message = "❌ Invalid selection. Please choose a valid number from the list above."
+                except Exception as e:
+                    logger.error(f"Error processing barber selection: {str(e)}")
+                    reply_message = "😔 Sorry, there was an error. Please try again or say 'restart' to start over."
+                    clear_session(phone)
+                
+            elif session["step"] == "date" and message.isdigit():
+                logger.info(f"📅 Processing date selection: {message}")
+                try:
+                    from datetime import datetime, timedelta
+                    today = datetime.now()
+                    tomorrow = today + timedelta(days=1)
+                    
+                    if message == "1":
+                        selected_date = today
+                        date_display = today.strftime("%A, %B %d")
+                        date_emoji = "📅"
+                    elif message == "2":
+                        selected_date = tomorrow
+                        date_display = tomorrow.strftime("%A, %B %d")
+                        date_emoji = "🌅"
+                    else:
+                        reply_message = "❌ Invalid selection. Please choose:\n\n1. 📅 Today\n2. 🌅 Tomorrow"
+                        return {"reply": reply_message}
+                    
+                    session["date"] = selected_date.strftime("%Y-%m-%d")
                     session["step"] = "time"
                     
-                    slots = get_available_slots(selected_barber.name)
+                    # Get available slots for the selected date
+                    slots = get_available_slots(session["barber"], selected_date)
                     if not slots:
-                        reply_message = "Sorry, no available slots found for today. Please try again tomorrow."
-                        clear_session(phone)
+                        reply_message = f"😔 Sorry, no available slots found for {date_emoji} {date_display}.\n\n🔄 Please try the other date or say 'restart' to choose a different barber."
+                        # Go back to date selection
+                        session["step"] = "date"
+                        session["date"] = None
                     else:
-                        slot_list = "\n".join([f"{i+1}. {slot}" for i, slot in enumerate(slots)])
-                        reply_message = f"Please choose your preferred time:\n\n{slot_list}"
-                except (IndexError, ValueError):
-                    reply_message = "Invalid selection. Please choose a valid number."
+                        slot_list = "\n".join([f"{i+1}. ⏰ {slot}" for i, slot in enumerate(slots)])
+                        reply_message = f"✅ Perfect! Available times for {date_emoji} {date_display}:\n\n{slot_list}\n\n⏰ Please choose your preferred time:"
                 except Exception as e:
-                    logger.error(f"Error getting slots: {str(e)}")
-                    reply_message = "Sorry, there was an error. Please try again."
+                    logger.error(f"Error processing date selection: {str(e)}")
+                    reply_message = "😔 Sorry, there was an error processing your date selection. Please try again."
                     clear_session(phone)
                 
             elif session["step"] == "time" and message.isdigit():
                 logger.info(f"⏰ Processing time selection: {message}")
                 try:
-                    slots = get_available_slots(session["barber"])
+                    from datetime import datetime
+                    selected_date = datetime.strptime(session["date"], "%Y-%m-%d")
+                    slots = get_available_slots(session["barber"], selected_date)
                     selected_time = slots[int(message) - 1]
                     
                     service = get_service(session["service"])
@@ -370,32 +415,39 @@ async def whatsapp_webhook(request: Request):
                         "barber_name": session["barber"],
                         "time_slot": selected_time,
                         "phone": phone,
-                        "date": datetime.now().strftime("%Y-%m-%d")
+                        "date": session["date"],
+                        "contact_name": session.get("contact_name", contact_name)
                     }
                     
                     result = book_slot(booking_data)
                     if result["status"] == "success":
-                        reply_message = f"✨ Booking Confirmed! ✨\n\nService: {service.name}\nBarber: {session['barber']}\nTime: {selected_time}\n\nSee you soon!"
+                        # Format the date for display
+                        booking_date = datetime.strptime(session["date"], "%Y-%m-%d")
+                        date_display = booking_date.strftime("%A, %B %d, %Y")
+                        client_name = session.get("contact_name", "")
+                        name_greeting = f"Hi {client_name}! " if client_name and client_name != "Unknown" else ""
+                        
+                        reply_message = f"🎉✨ Booking Confirmed! ✨🎉\n\n{name_greeting}📋 Your Appointment Details:\n💄 Service: {service.name}\n✂️ Barber: {session['barber']}\n📅 Date: {date_display}\n⏰ Time: {selected_time}\n\n🤗 We look forward to seeing you! Thank you for choosing our salon! 💖"
                     else:
-                        reply_message = "Sorry, that slot is no longer available. Please try again."
+                        reply_message = "😔 Sorry, that slot is no longer available. Please try again or say 'restart' to start over."
                     clear_session(phone)
                 except (IndexError, ValueError):
-                    reply_message = "Invalid selection. Please choose a valid number."
+                    reply_message = "❌ Invalid selection. Please choose a valid number from the time slots above."
                 except Exception as e:
                     logger.error(f"Error booking slot: {str(e)}")
-                    reply_message = "Sorry, there was an error. Please try again."
+                    reply_message = "😔 Sorry, there was an error processing your booking. Please try again or contact us directly."
                     clear_session(phone)
             
             else:
                 logger.info(f"❓ Unrecognized message: {message}")
-                reply_message = "I don't understand. Please say 'hi' to start booking or 'restart' to start over."
+                reply_message = "🤔 I don't understand that message.\n\n💬 Please say 'hi' to start booking or 'restart' to start over.\n\n🆘 Need help? Just say 'hi'!"
             
             logger.info(f"📤 Sending reply: {reply_message}")
             return {"reply": reply_message}
             
         except Exception as e:
             logger.error(f"❌ Error processing message: {str(e)}")
-            return {"reply": "Sorry, there was an error processing your message. Please try again."}
+            return {"reply": "😔 Sorry, there was an error processing your message. Please try again or say 'hi' to start over."}
             
     except Exception as e:
         logger.error(f"❌ Error in WhatsApp webhook: {str(e)}")
