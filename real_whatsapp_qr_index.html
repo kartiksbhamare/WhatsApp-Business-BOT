@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real WhatsApp Web QR Codes - Device Linking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); 
+            color: white; 
+            min-height: 100vh; 
+            margin: 0; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: rgba(255,255,255,0.1); 
+            padding: 30px; 
+            border-radius: 15px; 
+            backdrop-filter: blur(10px); 
+        }
+        .salon-card { 
+            background: rgba(255,255,255,0.2); 
+            margin: 20px; 
+            padding: 30px; 
+            border-radius: 15px; 
+            display: inline-block; 
+            width: 300px; 
+            vertical-align: top;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        .qr-image { 
+            max-width: 250px; 
+            height: auto; 
+            border-radius: 10px; 
+            border: 3px solid white;
+            margin: 20px 0;
+        }
+        .qr-type {
+            background: #25D366;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 10px 0;
+            display: inline-block;
+        }
+        .download-btn, .copy-btn { 
+            display: inline-block; 
+            padding: 10px 20px; 
+            margin: 5px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .download-btn { 
+            background: #4CAF50; 
+            color: white; 
+        }
+        .download-btn:hover { 
+            background: #45a049; 
+            transform: translateY(-2px);
+        }
+        .copy-btn { 
+            background: #ff9800; 
+            color: white; 
+        }
+        .copy-btn:hover { 
+            background: #f57c00; 
+            transform: translateY(-2px);
+        }
+        .instructions { 
+            background: rgba(255,255,255,0.15); 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-top: 20px; 
+            font-size: 14px;
+            text-align: left;
+        }
+        h1 { 
+            margin-bottom: 30px; 
+            font-size: 2.5em; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3); 
+        }
+        .notice { 
+            background: rgba(255,255,255,0.2); 
+            color: white; 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin: 20px 0; 
+            border: 3px solid rgba(255,255,255,0.3); 
+            font-weight: bold;
+        }
+        .whatsapp-notice {
+            background: rgba(37,211,102,0.3);
+            border: 3px solid #25D366;
+        }
+    </style>
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('GitHub URL copied to clipboard!');
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Real WhatsApp Web QR Codes</h1>
+        
+        <div class="notice whatsapp-notice">
+            <h3>🔗 WhatsApp Web Device Linking</h3>
+            <p>These are REAL WhatsApp Web QR codes for device linking!</p>
+            <p>When salon owners scan these, their WhatsApp gets linked to the booking bot.</p>
+            <p>Same as scanning QR code on web.whatsapp.com - but for your booking system!</p>
+        </div>
+        
+        <div class="salons">
+            
+        <div class="salon-card">
+            <h3>Downtown Beauty Salon</h3>
+            <div class="qr-type">📱 WhatsApp Web Device Linking</div>
+            <img src="https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_a.png" alt="Downtown Beauty Salon WhatsApp Web QR" class="qr-image">
+            <div class="links">
+                <a href="https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_a.png" target="_blank" class="download-btn">📥 Download QR</a>
+                <a href="#" onclick="copyToClipboard('https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_a.png')" class="copy-btn">📋 Copy URL</a>
+            </div>
+            <p class="instructions">
+                <strong>For Salon Owner:</strong><br>
+                1. Download this QR code<br>
+                2. Open WhatsApp on your phone<br>
+                3. Go to Settings → Linked Devices<br>
+                4. Tap "Link a Device"<br>
+                5. Scan this QR code<br>
+                6. Your WhatsApp becomes the booking bot!
+            </p>
+        </div>
+    
+        <div class="salon-card">
+            <h3>Uptown Hair Studio</h3>
+            <div class="qr-type">📱 WhatsApp Web Device Linking</div>
+            <img src="https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_b.png" alt="Uptown Hair Studio WhatsApp Web QR" class="qr-image">
+            <div class="links">
+                <a href="https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_b.png" target="_blank" class="download-btn">📥 Download QR</a>
+                <a href="#" onclick="copyToClipboard('https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_b.png')" class="copy-btn">📋 Copy URL</a>
+            </div>
+            <p class="instructions">
+                <strong>For Salon Owner:</strong><br>
+                1. Download this QR code<br>
+                2. Open WhatsApp on your phone<br>
+                3. Go to Settings → Linked Devices<br>
+                4. Tap "Link a Device"<br>
+                5. Scan this QR code<br>
+                6. Your WhatsApp becomes the booking bot!
+            </p>
+        </div>
+    
+        <div class="salon-card">
+            <h3>Luxury Spa & Salon</h3>
+            <div class="qr-type">📱 WhatsApp Web Device Linking</div>
+            <img src="https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_c.png" alt="Luxury Spa & Salon WhatsApp Web QR" class="qr-image">
+            <div class="links">
+                <a href="https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_c.png" target="_blank" class="download-btn">📥 Download QR</a>
+                <a href="#" onclick="copyToClipboard('https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/real_whatsapp_qr_salon_c.png')" class="copy-btn">📋 Copy URL</a>
+            </div>
+            <p class="instructions">
+                <strong>For Salon Owner:</strong><br>
+                1. Download this QR code<br>
+                2. Open WhatsApp on your phone<br>
+                3. Go to Settings → Linked Devices<br>
+                4. Tap "Link a Device"<br>
+                5. Scan this QR code<br>
+                6. Your WhatsApp becomes the booking bot!
+            </p>
+        </div>
+    
+        </div>
+        
+        <div style="margin-top: 40px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+            <h3>🎯 How It Works</h3>
+            <p>✅ Salon owner scans QR → Links WhatsApp → Becomes booking bot</p>
+            <p>✅ Customers message salon's phone → Get automatic booking responses</p>
+            <p>✅ Same as WhatsApp Web linking - but for booking automation</p>
+            <p>✅ No complex setup - just scan and it works!</p>
+        </div>
+    </div>
+</body>
+</html>
