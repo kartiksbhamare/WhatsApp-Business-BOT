@@ -17,7 +17,9 @@ from app.services.firestore import (
     get_barber,
     get_barbers_for_service,
     get_available_slots,
-    book_slot
+    book_slot,
+    get_salon,
+    get_all_salons
 )
 from app.services.whatsapp import send_whatsapp_message, check_whatsapp_service_health
 from app.config import get_settings
@@ -26,9 +28,9 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 app = FastAPI(
-    title="Smart WhatsApp Booking Bot",
-    description="A WhatsApp-based booking system for salons using FastAPI, Firebase and WhatsApp Web.js",
-    version="1.0.0"
+    title="Multi-Salon WhatsApp Booking Bot",
+    description="A WhatsApp-based booking system for multiple salons using FastAPI, Firebase and WhatsApp Web.js",
+    version="2.0.0"
 )
 
 # Add CORS middleware
@@ -40,13 +42,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory session storage
+# In-memory session storage with salon context
 sessions = {}
 
 def get_session_data(phone: str) -> Dict:
     """Get or create session data for a phone number"""
     if phone not in sessions:
         sessions[phone] = {
+            "salon_id": None,  # NEW FIELD - which salon this session is for
             "step": "service",
             "service": None,
             "barber": None,
@@ -60,6 +63,176 @@ def clear_session(phone: str):
     """Clear session data for a phone number"""
     if phone in sessions:
         del sessions[phone]
+
+async def process_message_for_salon(message: str, phone: str, salon_id: str, contact_name: str) -> str:
+    """Process message with salon context"""
+    session = get_session_data(phone)
+    session["salon_id"] = salon_id
+    session["contact_name"] = contact_name
+    
+    reply_message = ""
+    
+    try:
+        # Get salon info
+        salon = get_salon(salon_id)
+        salon_name = salon.name if salon else "Our Salon"
+        
+        # Handle message based on session state
+        if message in ["hi", "hello", "start", "restart"]:
+            logger.info(f"🎯 Handling greeting message: {message} for salon: {salon_id}")
+            if message in ["restart", "start"]:
+                clear_session(phone)
+                session = get_session_data(phone)
+                session["salon_id"] = salon_id
+                session["contact_name"] = contact_name
+            
+            # Get salon-specific services
+            services = get_all_services(salon_id)
+            if not services:
+                reply_message = f"👋 Welcome to {salon_name}! ✨\n\n😔 Sorry, no services are currently available. Please contact us directly."
+            else:
+                service_list = "\n".join([f"{i+1}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for i, s in enumerate(services)])
+                reply_message = f"👋 Welcome to {salon_name}! ✨\n\nHere are our services:\n\n{service_list}\n\n📝 Please enter the number of the service you'd like to book."
+        
+        elif session["step"] == "service" and message.isdigit():
+            logger.info(f"🔢 Processing service selection: {message} for salon: {salon_id}")
+            services = get_all_services(salon_id)
+            
+            try:
+                service_index = int(message) - 1
+                if 0 <= service_index < len(services):
+                    selected_service = services[service_index]
+                    barbers = get_barbers_for_service(selected_service.id, salon_id)
+                    
+                    if not barbers:
+                        reply_message = "😔 Sorry, no barbers are currently available for this service. Please try another service or contact us directly."
+                    else:
+                        session["service"] = selected_service.id
+                        session["step"] = "barber"
+                        barber_list = "\n".join([f"{i+1}. ✂️ {b.name}" for i, b in enumerate(barbers)])
+                        reply_message = f"✅ You've selected {selected_service.name}!\n\n👨‍💼 Please choose your preferred stylist:\n\n{barber_list}"
+                else:
+                    service_list = "\n".join([f"{i+1}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for i, s in enumerate(services)])
+                    reply_message = f"❌ Invalid service number. Please choose from:\n\n{service_list}"
+            except (ValueError, IndexError):
+                service_list = "\n".join([f"{i+1}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for i, s in enumerate(services)])
+                reply_message = f"❌ Invalid selection. Please choose from:\n\n{service_list}"
+            
+        elif session["step"] == "barber" and message.isdigit():
+            logger.info(f"✂️ Processing barber selection: {message} for salon: {salon_id}")
+            try:
+                barbers = get_barbers_for_service(session["service"], salon_id)
+                barber_index = int(message) - 1
+                
+                if 0 <= barber_index < len(barbers):
+                    selected_barber = barbers[barber_index]
+                    session["barber"] = selected_barber.name
+                    session["step"] = "date"
+                    
+                    # Show date options (today and tomorrow)
+                    today = datetime.now()
+                    tomorrow = today + timedelta(days=1)
+                    
+                    today_str = today.strftime("%A, %B %d")
+                    tomorrow_str = tomorrow.strftime("%A, %B %d")
+                    
+                    reply_message = f"🎉 Great! You've selected ✂️ {selected_barber.name}.\n\n📅 Please choose your preferred date:\n\n1. 📅 Today ({today_str})\n2. 🌅 Tomorrow ({tomorrow_str})"
+                else:
+                    reply_message = "❌ Invalid selection. Please choose a valid number from the list above."
+            except (IndexError, ValueError):
+                reply_message = "❌ Invalid selection. Please choose a valid number from the list above."
+            except Exception as e:
+                logger.error(f"Error processing barber selection: {str(e)}")
+                reply_message = "😔 Sorry, there was an error. Please try again or say 'restart' to start over."
+                clear_session(phone)
+            
+        elif session["step"] == "date" and message.isdigit():
+            logger.info(f"📅 Processing date selection: {message} for salon: {salon_id}")
+            try:
+                today = datetime.now()
+                tomorrow = today + timedelta(days=1)
+                
+                if message == "1":
+                    selected_date = today
+                    date_display = today.strftime("%A, %B %d")
+                    date_emoji = "📅"
+                elif message == "2":
+                    selected_date = tomorrow
+                    date_display = tomorrow.strftime("%A, %B %d")
+                    date_emoji = "🌅"
+                else:
+                    reply_message = "❌ Invalid selection. Please choose:\n\n1. 📅 Today\n2. 🌅 Tomorrow"
+                    return reply_message
+                
+                session["date"] = selected_date.strftime("%Y-%m-%d")
+                session["step"] = "time"
+                
+                # Get available slots for the selected date and salon
+                slots = get_available_slots(session["barber"], selected_date, salon_id)
+                if not slots:
+                    reply_message = f"😔 Sorry, no available slots found for {date_emoji} {date_display}.\n\n🔄 Please try the other date or say 'restart' to choose a different barber."
+                    # Go back to date selection
+                    session["step"] = "date"
+                    session["date"] = None
+                else:
+                    slot_list = "\n".join([f"{i+1}. ⏰ {slot}" for i, slot in enumerate(slots)])
+                    reply_message = f"✅ Perfect! Available times for {date_emoji} {date_display}:\n\n{slot_list}\n\n⏰ Please choose your preferred time:"
+            except Exception as e:
+                logger.error(f"Error processing date selection: {str(e)}")
+                reply_message = "😔 Sorry, there was an error processing your date selection. Please try again."
+                clear_session(phone)
+            
+        elif session["step"] == "time" and message.isdigit():
+            logger.info(f"⏰ Processing time selection: {message} for salon: {salon_id}")
+            try:
+                selected_date = datetime.strptime(session["date"], "%Y-%m-%d")
+                slots = get_available_slots(session["barber"], selected_date, salon_id)
+                slot_index = int(message) - 1
+                
+                if 0 <= slot_index < len(slots):
+                    selected_time = slots[slot_index]
+                    
+                    service = get_service(session["service"], salon_id)
+                    booking_data = {
+                        "service_id": service.id,
+                        "service_name": service.name,
+                        "barber_name": session["barber"],
+                        "time_slot": selected_time,
+                        "phone": phone,
+                        "date": session["date"],
+                        "contact_name": session.get("contact_name", contact_name)
+                    }
+                    
+                    result = book_slot(booking_data, salon_id)
+                    if result["status"] == "success":
+                        # Format the date for display
+                        booking_date = datetime.strptime(session["date"], "%Y-%m-%d")
+                        date_display = booking_date.strftime("%A, %B %d, %Y")
+                        client_name = session.get("contact_name", "")
+                        name_greeting = f"Hi {client_name}! " if client_name and client_name != "Unknown" else ""
+                        
+                        reply_message = f"🎉✨ Booking Confirmed! ✨🎉\n\n{name_greeting}📋 Your Appointment Details:\n🏢 Salon: {salon_name}\n💄 Service: {service.name}\n✂️ Barber: {session['barber']}\n📅 Date: {date_display}\n⏰ Time: {selected_time}\n\n🤗 We look forward to seeing you! Thank you for choosing {salon_name}! 💖"
+                    else:
+                        reply_message = "😔 Sorry, that slot is no longer available. Please try again or say 'restart' to start over."
+                    clear_session(phone)
+                else:
+                    reply_message = "❌ Invalid selection. Please choose a valid number from the time slots above."
+            except (IndexError, ValueError):
+                reply_message = "❌ Invalid selection. Please choose a valid number from the time slots above."
+            except Exception as e:
+                logger.error(f"Error booking slot: {str(e)}")
+                reply_message = "😔 Sorry, there was an error processing your booking. Please try again or contact us directly."
+                clear_session(phone)
+        
+        else:
+            logger.info(f"❓ Unrecognized message: {message} for salon: {salon_id}")
+            reply_message = f"🤔 I don't understand that message.\n\n💬 Please say 'hi' to start booking at {salon_name} or 'restart' to start over.\n\n🆘 Need help? Just say 'hi'!"
+        
+        return reply_message
+        
+    except Exception as e:
+        logger.error(f"❌ Error processing message for salon {salon_id}: {str(e)}")
+        return "😔 Sorry, there was an error processing your message. Please try again or say 'hi' to start over."
 
 @app.on_event("startup")
 async def startup_event():
@@ -279,21 +452,57 @@ async def send_message_proxy(request: Request):
         logger.error(f"Error proxying send message: {e}")
         raise HTTPException(status_code=503, detail="WhatsApp service not available")
 
-@app.post("/webhook/whatsapp")
-async def whatsapp_webhook(request: Request):
-    """Webhook endpoint for WhatsApp Web.js messages"""
+@app.get("/api/salons")
+async def get_salons():
+    """Get all available salons"""
+    salons = get_all_salons()
+    return {"salons": [{"id": s.id, "name": s.name, "phone": s.phone, "address": s.address, "active": s.active} for s in salons]}
+
+@app.get("/api/services/{salon_id}")
+async def get_services_by_salon(salon_id: str):
+    """Get all services for a specific salon"""
+    services = get_all_services(salon_id)
+    return {"salon_id": salon_id, "services": [{"id": s.id, "name": s.name, "price": s.price, "duration": s.duration, "description": s.description} for s in services]}
+
+@app.get("/api/barbers/{salon_id}")
+async def get_barbers_by_salon(salon_id: str):
+    """Get all barbers for a specific salon"""
+    barbers = get_all_barbers(salon_id)
+    return {"salon_id": salon_id, "barbers": [{"name": b.name, "email": b.email, "services": b.services, "working_days": b.working_days} for b in barbers]}
+
+@app.get("/api/barbers/{salon_id}/service/{service_id}")
+async def get_barbers_by_salon_service(salon_id: str, service_id: str):
+    """Get barbers that provide a specific service in a specific salon"""
+    barbers = get_barbers_for_service(service_id, salon_id)
+    return {"salon_id": salon_id, "service_id": service_id, "barbers": [{"name": b.name, "email": b.email, "working_days": b.working_days} for b in barbers]}
+
+@app.get("/api/slots/{salon_id}/{barber_name}")
+async def get_barber_slots_by_salon(salon_id: str, barber_name: str):
+    """Get available slots for a barber in a specific salon"""
+    slots = get_available_slots(barber_name, salon_id=salon_id)
+    return {"salon_id": salon_id, "barber": barber_name, "available_slots": slots}
+
+@app.post("/webhook/whatsapp/{salon_id}")
+async def whatsapp_webhook_salon(salon_id: str, request: Request):
+    """Salon-specific webhook endpoint for WhatsApp Web.js messages"""
     try:
-        logger.info("🔔 Received WhatsApp Web webhook request")
+        logger.info(f"🔔 Received WhatsApp Web webhook request for salon: {salon_id}")
+        
+        # Validate salon exists
+        salon = get_salon(salon_id)
+        if not salon:
+            logger.error(f"❌ Invalid salon ID: {salon_id}")
+            raise HTTPException(status_code=404, detail=f"Salon {salon_id} not found")
         
         # Get JSON data from WhatsApp Web service
         data = await request.json()
-        logger.info(f"📨 WhatsApp data received: {data}")
+        logger.info(f"📨 WhatsApp data received for {salon.name}: {data}")
         
         message = data.get("body", "").lower().strip()
         phone = data.get("from", "").replace("@c.us", "").replace("@g.us", "")
-        contact_name = data.get("contactName", "Unknown")  # Extract contact name
+        contact_name = data.get("contactName", "Unknown")
         
-        logger.info(f"📱 Processing message: '{message}' from phone: {phone}, contact: {contact_name}")
+        logger.info(f"📱 Processing message: '{message}' from phone: {phone}, contact: {contact_name}, salon: {salon.name}")
         
         # Skip group messages
         if data.get("isGroupMsg", False) or "@g.us" in data.get("from", ""):
@@ -303,152 +512,37 @@ async def whatsapp_webhook(request: Request):
         if not message or not phone:
             logger.error("❌ Missing message or phone in WhatsApp webhook")
             return {"error": "Missing required data"}
-            
-        # Get session data
-        session = get_session_data(phone)
-        logger.info(f"📊 Session state for {phone}: {session}")
         
-        reply_message = ""
+        # Process message with salon context
+        reply_message = await process_message_for_salon(message, phone, salon_id, contact_name)
         
-        try:
-            # Handle message based on session state
-            if message in ["hi", "hello", "start", "restart"]:
-                logger.info(f"🎯 Handling greeting message: {message}")
-                if message in ["restart", "start"]:
-                    clear_session(phone)
-                    session = get_session_data(phone)
-                # Store contact name in session
-                session["contact_name"] = contact_name
-                services = get_all_services()
-                service_list = "\n".join([f"{s.id}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for s in services])
-                reply_message = f"👋 Welcome to our Salon! ✨\n\nHere are our services:\n\n{service_list}\n\n📝 Please enter the number of the service you'd like to book."
-            
-            elif session["step"] == "service" and message.isdigit():
-                logger.info(f"🔢 Processing service selection: {message}")
-                service = get_service(message)
-                if service:
-                    barbers = get_barbers_for_service(service.id)
-                    if not barbers:
-                        reply_message = "😔 Sorry, no barbers are currently available for this service. Please try another service or contact us directly."
-                    else:
-                        session["service"] = service.id
-                        session["step"] = "barber"
-                        barber_list = "\n".join([f"{i+1}. ✂️ {b.name}" for i, b in enumerate(barbers)])
-                        reply_message = f"✅ You've selected {service.name}!\n\n👨‍💼 Please choose your preferred stylist:\n\n{barber_list}"
-                else:
-                    services = get_all_services()
-                    service_list = "\n".join([f"{s.id}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for s in services])
-                    reply_message = f"❌ Invalid service number. Please choose from:\n\n{service_list}"
-                
-            elif session["step"] == "barber" and message.isdigit():
-                logger.info(f"✂️ Processing barber selection: {message}")
-                try:
-                    barbers = get_barbers_for_service(session["service"])
-                    selected_barber = barbers[int(message) - 1]
-                    session["barber"] = selected_barber.name
-                    session["step"] = "date"
-                    
-                    # Show date options (today and tomorrow)
-                    today = datetime.now()
-                    tomorrow = today + timedelta(days=1)
-                    
-                    today_str = today.strftime("%A, %B %d")
-                    tomorrow_str = tomorrow.strftime("%A, %B %d")
-                    
-                    reply_message = f"🎉 Great! You've selected ✂️ {selected_barber.name}.\n\n📅 Please choose your preferred date:\n\n1. 📅 Today ({today_str})\n2. 🌅 Tomorrow ({tomorrow_str})"
-                except (IndexError, ValueError):
-                    reply_message = "❌ Invalid selection. Please choose a valid number from the list above."
-                except Exception as e:
-                    logger.error(f"Error processing barber selection: {str(e)}")
-                    reply_message = "😔 Sorry, there was an error. Please try again or say 'restart' to start over."
-                    clear_session(phone)
-                
-            elif session["step"] == "date" and message.isdigit():
-                logger.info(f"📅 Processing date selection: {message}")
-                try:
-                    today = datetime.now()
-                    tomorrow = today + timedelta(days=1)
-                    
-                    if message == "1":
-                        selected_date = today
-                        date_display = today.strftime("%A, %B %d")
-                        date_emoji = "📅"
-                    elif message == "2":
-                        selected_date = tomorrow
-                        date_display = tomorrow.strftime("%A, %B %d")
-                        date_emoji = "🌅"
-                    else:
-                        reply_message = "❌ Invalid selection. Please choose:\n\n1. 📅 Today\n2. 🌅 Tomorrow"
-                        return {"reply": reply_message}
-                    
-                    session["date"] = selected_date.strftime("%Y-%m-%d")
-                    session["step"] = "time"
-                    
-                    # Get available slots for the selected date
-                    slots = get_available_slots(session["barber"], selected_date)
-                    if not slots:
-                        reply_message = f"😔 Sorry, no available slots found for {date_emoji} {date_display}.\n\n🔄 Please try the other date or say 'restart' to choose a different barber."
-                        # Go back to date selection
-                        session["step"] = "date"
-                        session["date"] = None
-                    else:
-                        slot_list = "\n".join([f"{i+1}. ⏰ {slot}" for i, slot in enumerate(slots)])
-                        reply_message = f"✅ Perfect! Available times for {date_emoji} {date_display}:\n\n{slot_list}\n\n⏰ Please choose your preferred time:"
-                except Exception as e:
-                    logger.error(f"Error processing date selection: {str(e)}")
-                    reply_message = "😔 Sorry, there was an error processing your date selection. Please try again."
-                    clear_session(phone)
-                
-            elif session["step"] == "time" and message.isdigit():
-                logger.info(f"⏰ Processing time selection: {message}")
-                try:
-                    selected_date = datetime.strptime(session["date"], "%Y-%m-%d")
-                    slots = get_available_slots(session["barber"], selected_date)
-                    selected_time = slots[int(message) - 1]
-                    
-                    service = get_service(session["service"])
-                    booking_data = {
-                        "service_id": service.id,
-                        "service_name": service.name,
-                        "barber_name": session["barber"],
-                        "time_slot": selected_time,
-                        "phone": phone,
-                        "date": session["date"],
-                        "contact_name": session.get("contact_name", contact_name)
-                    }
-                    
-                    result = book_slot(booking_data)
-                    if result["status"] == "success":
-                        # Format the date for display
-                        booking_date = datetime.strptime(session["date"], "%Y-%m-%d")
-                        date_display = booking_date.strftime("%A, %B %d, %Y")
-                        client_name = session.get("contact_name", "")
-                        name_greeting = f"Hi {client_name}! " if client_name and client_name != "Unknown" else ""
-                        
-                        reply_message = f"🎉✨ Booking Confirmed! ✨🎉\n\n{name_greeting}📋 Your Appointment Details:\n💄 Service: {service.name}\n✂️ Barber: {session['barber']}\n📅 Date: {date_display}\n⏰ Time: {selected_time}\n\n🤗 We look forward to seeing you! Thank you for choosing our salon! 💖"
-                    else:
-                        reply_message = "😔 Sorry, that slot is no longer available. Please try again or say 'restart' to start over."
-                    clear_session(phone)
-                except (IndexError, ValueError):
-                    reply_message = "❌ Invalid selection. Please choose a valid number from the time slots above."
-                except Exception as e:
-                    logger.error(f"Error booking slot: {str(e)}")
-                    reply_message = "😔 Sorry, there was an error processing your booking. Please try again or contact us directly."
-                    clear_session(phone)
-            
-            else:
-                logger.info(f"❓ Unrecognized message: {message}")
-                reply_message = "🤔 I don't understand that message.\n\n💬 Please say 'hi' to start booking or 'restart' to start over.\n\n🆘 Need help? Just say 'hi'!"
-            
-            logger.info(f"📤 Sending reply: {reply_message}")
-            return {"reply": reply_message}
-            
-        except Exception as e:
-            logger.error(f"❌ Error processing message: {str(e)}")
-            return {"reply": "😔 Sorry, there was an error processing your message. Please try again or say 'hi' to start over."}
-            
+        logger.info(f"📤 Sending reply for {salon.name}: {reply_message}")
+        return {"reply": reply_message}
+        
     except Exception as e:
-        logger.error(f"❌ Error in WhatsApp webhook: {str(e)}")
+        logger.error(f"❌ Error in WhatsApp webhook for salon {salon_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Legacy webhook for backward compatibility
+@app.post("/webhook/whatsapp")
+async def whatsapp_webhook_legacy(request: Request):
+    """Legacy webhook endpoint - routes to default salon (salon_a)"""
+    try:
+        logger.info("🔔 Received WhatsApp Web webhook request (legacy)")
+        
+        # Get the receiving phone number to determine salon
+        data = await request.json()
+        to_phone = data.get("to", "")
+        
+        # Determine salon from receiving phone
+        salon_id = settings.get_salon_from_phone(to_phone)
+        logger.info(f"📱 Routing legacy webhook to salon: {salon_id} based on phone: {to_phone}")
+        
+        # Route to appropriate salon handler
+        return await whatsapp_webhook_salon(salon_id, request)
+        
+    except Exception as e:
+        logger.error(f"❌ Error in legacy WhatsApp webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/qr", response_class=HTMLResponse)
