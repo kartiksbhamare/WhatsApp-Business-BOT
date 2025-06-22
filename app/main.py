@@ -563,10 +563,10 @@ async def whatsapp_webhook_legacy(request: Request):
 
 @app.get("/qr", response_class=HTMLResponse)
 async def qr_code_page():
-    """Proxy QR code page from WhatsApp service (legacy - defaults to salon_a)"""
+    """Proxy QR code page from WhatsApp service (legacy - defaults to main service)"""
     try:
-        # Default to salon_a for legacy compatibility
-        whatsapp_url = settings.SALON_A_WHATSAPP_URL
+        # Use the main working WhatsApp service
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
         return HTMLResponse(content=response.text, status_code=response.status_code)
     except Exception as e:
@@ -589,9 +589,20 @@ async def qr_code_page():
 async def qr_code_salon_a():
     """QR code page for Salon A (Downtown Beauty Salon)"""
     try:
-        whatsapp_url = settings.SALON_A_WHATSAPP_URL
+        # Use the main working WhatsApp service for all salons
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
-        return HTMLResponse(content=response.text, status_code=response.status_code)
+        
+        # Modify the response to show salon-specific branding
+        if response.status_code == 200:
+            content = response.text
+            # Add salon-specific branding to the title and headers
+            content = content.replace("<title>", "<title>🏪 Downtown Beauty Salon - ")
+            content = content.replace("WhatsApp Web Service", "Downtown Beauty Salon WhatsApp")
+            content = content.replace("Scan QR Code", "🏪 Downtown Beauty Salon - Scan QR Code")
+            return HTMLResponse(content=content, status_code=response.status_code)
+        else:
+            return HTMLResponse(content=response.text, status_code=response.status_code)
     except Exception as e:
         logger.error(f"Error proxying QR page for Salon A: {e}")
         return HTMLResponse(content=f"""
@@ -612,9 +623,20 @@ async def qr_code_salon_a():
 async def qr_code_salon_b():
     """QR code page for Salon B (Uptown Hair Studio)"""
     try:
-        whatsapp_url = settings.SALON_B_WHATSAPP_URL
+        # Use the main working WhatsApp service for all salons
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
-        return HTMLResponse(content=response.text, status_code=response.status_code)
+        
+        # Modify the response to show salon-specific branding
+        if response.status_code == 200:
+            content = response.text
+            # Add salon-specific branding to the title and headers
+            content = content.replace("<title>", "<title>💇 Uptown Hair Studio - ")
+            content = content.replace("WhatsApp Web Service", "Uptown Hair Studio WhatsApp")
+            content = content.replace("Scan QR Code", "💇 Uptown Hair Studio - Scan QR Code")
+            return HTMLResponse(content=content, status_code=response.status_code)
+        else:
+            return HTMLResponse(content=response.text, status_code=response.status_code)
     except Exception as e:
         logger.error(f"Error proxying QR page for Salon B: {e}")
         return HTMLResponse(content=f"""
@@ -635,9 +657,20 @@ async def qr_code_salon_b():
 async def qr_code_salon_c():
     """QR code page for Salon C (Luxury Spa & Salon)"""
     try:
-        whatsapp_url = settings.SALON_C_WHATSAPP_URL
+        # Use the main working WhatsApp service for all salons
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
-        return HTMLResponse(content=response.text, status_code=response.status_code)
+        
+        # Modify the response to show salon-specific branding
+        if response.status_code == 200:
+            content = response.text
+            # Add salon-specific branding to the title and headers
+            content = content.replace("<title>", "<title>✨ Luxury Spa & Salon - ")
+            content = content.replace("WhatsApp Web Service", "Luxury Spa & Salon WhatsApp")  
+            content = content.replace("Scan QR Code", "✨ Luxury Spa & Salon - Scan QR Code")
+            return HTMLResponse(content=content, status_code=response.status_code)
+        else:
+            return HTMLResponse(content=response.text, status_code=response.status_code)
     except Exception as e:
         logger.error(f"Error proxying QR page for Salon C: {e}")
         return HTMLResponse(content=f"""
@@ -706,12 +739,18 @@ async def qr_directory():
                 .qr-btn:hover {{ background: #45a049; transform: translateY(-2px); }}
                 h1 {{ margin-bottom: 30px; font-size: 2.5em; }}
                 h2 {{ color: #ffd700; }}
+                .notice {{ background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffd700; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <h1>📱 WhatsApp QR Codes</h1>
                 <p>Choose your salon to get the WhatsApp QR code:</p>
+                
+                <div class="notice">
+                    <h3>🔗 How It Works</h3>
+                    <p>All salons use the same WhatsApp connection, but your messages are automatically routed to the correct salon based on your selection. Each salon has its own services, barbers, and booking system!</p>
+                </div>
                 
                 <div class="salon-card">
                     <h2>🏪 Downtown Beauty Salon</h2>
@@ -739,6 +778,7 @@ async def qr_directory():
                         <li>Go to Settings > Linked Devices</li>
                         <li>Tap "Link a Device"</li>
                         <li>Scan the QR code from your browser</li>
+                        <li>Start chatting - your messages will be routed to the correct salon!</li>
                     </ol>
                 </div>
             </div>
