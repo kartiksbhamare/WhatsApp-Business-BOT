@@ -14,7 +14,7 @@ class Salon(BaseModel):
 
 class Barber(BaseModel):
     name: str
-    salon_id: str  # NEW FIELD - which salon this barber belongs to
+    salon_id: str = "default"  # FIXED - Optional with default value for backward compatibility
     email: str
     services: List[str] = []  # List of service IDs this barber can perform
     working_days: List[str] = []  # Days of the week this barber works
@@ -24,7 +24,7 @@ class Barber(BaseModel):
 
 class Service(BaseModel):
     id: str
-    salon_id: str  # NEW FIELD - which salon this service belongs to
+    salon_id: str = "default"  # FIXED - Optional with default value for backward compatibility
     name: str
     duration: int  # Duration in minutes
     price: float
@@ -33,7 +33,7 @@ class Service(BaseModel):
 class Booking(BaseModel):
     """Booking model for appointments"""
     id: Optional[str] = None
-    salon_id: str  # NEW FIELD - which salon this booking is for
+    salon_id: str = "default"  # FIXED - Optional with default value for backward compatibility
     service_id: str
     service_name: str
     barber_name: str

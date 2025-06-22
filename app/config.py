@@ -68,7 +68,9 @@ class Settings(BaseSettings):
         return {
             self.SALON_A_PHONE.replace("+", "").replace("@c.us", ""): "salon_a",
             self.SALON_B_PHONE.replace("+", "").replace("@c.us", ""): "salon_b", 
-            self.SALON_C_PHONE.replace("+", "").replace("@c.us", ""): "salon_c"
+            self.SALON_C_PHONE.replace("+", "").replace("@c.us", ""): "salon_c",
+            # Add default salon for backward compatibility
+            "default": "default"
         }
     
     @property
@@ -77,13 +79,15 @@ class Settings(BaseSettings):
         return {
             "salon_a": self.SALON_A_WHATSAPP_URL,
             "salon_b": self.SALON_B_WHATSAPP_URL,
-            "salon_c": self.SALON_C_WHATSAPP_URL
+            "salon_c": self.SALON_C_WHATSAPP_URL,
+            # Add default salon for backward compatibility
+            "default": self.WHATSAPP_SERVICE_URL
         }
     
     def get_salon_from_phone(self, to_phone: str) -> str:
         """Get salon ID from receiving phone number"""
         cleaned_phone = to_phone.replace("+", "").replace("@c.us", "")
-        return self.salon_phone_mapping.get(cleaned_phone, "salon_a")  # Default to salon_a
+        return self.salon_phone_mapping.get(cleaned_phone, "default")  # Default to 'default' for backward compatibility
     
     def get_whatsapp_url_for_salon(self, salon_id: str) -> str:
         """Get WhatsApp service URL for a specific salon"""
