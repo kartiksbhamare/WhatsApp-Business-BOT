@@ -1187,6 +1187,45 @@ async def qr_web_page(salon_id: str):
             </body></html>
         """, status_code=500)
 
+@app.get("/qr/{salon_id}", response_class=HTMLResponse)
+async def qr_salon_proxy(salon_id: str):
+    """Proxy salon-specific QR requests to WhatsApp service"""
+    try:
+        whatsapp_url = settings.WHATSAPP_SERVICE_URL
+        response = requests.get(f"{whatsapp_url}/qr/{salon_id}", timeout=10)
+        return HTMLResponse(content=response.text, status_code=response.status_code)
+    except Exception as e:
+        logger.error(f"Error proxying salon QR page for {salon_id}: {e}")
+        
+        # Fallback to a simple page
+        salon_names = {
+            "salon_a": "Downtown Beauty Salon",
+            "salon_b": "Uptown Hair Studio", 
+            "salon_c": "Luxury Spa & Salon"
+        }
+        salon_colors = {
+            "salon_a": "#4CAF50",
+            "salon_b": "#2196F3", 
+            "salon_c": "#9C27B0"
+        }
+        
+        salon_name = salon_names.get(salon_id, "Unknown Salon")
+        salon_color = salon_colors.get(salon_id, "#4CAF50")
+        
+        return HTMLResponse(content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head><title>{salon_name} - Service Starting</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px; background: {salon_color}22; color: white;">
+                <h1>⏳ {salon_name}</h1>
+                <h2>WhatsApp Service Starting...</h2>
+                <p>Please wait while we initialize the WhatsApp service.</p>
+                <button onclick="window.location.reload()" style="background: {salon_color}; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">🔄 Refresh</button>
+                <script>setTimeout(() => window.location.reload(), 15000);</script>
+            </body>
+            </html>
+        """, status_code=503)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
