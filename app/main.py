@@ -45,6 +45,9 @@ app.add_middleware(
 # In-memory session storage with salon context
 sessions = {}
 
+# Global QR access tracking (in production, use Redis or database)
+qr_access_log = {}
+
 def get_session_data(phone: str) -> Dict:
     """Get or create session data for a phone number"""
     if phone not in sessions:
@@ -55,7 +58,8 @@ def get_session_data(phone: str) -> Dict:
             "barber": None,
             "date": None,
             "time_slot": None,
-            "contact_name": None
+            "contact_name": None,
+            "qr_source": None  # NEW FIELD - which QR page was accessed
         }
     return sessions[phone]
 
@@ -63,6 +67,13 @@ def clear_session(phone: str):
     """Clear session data for a phone number"""
     if phone in sessions:
         del sessions[phone]
+
+def set_salon_preference(phone: str, salon_id: str, source: str = "qr"):
+    """Set salon preference for a phone number"""
+    session = get_session_data(phone)
+    session["salon_id"] = salon_id
+    session["qr_source"] = source
+    logger.info(f"🎯 Set salon preference for {phone}: {salon_id} (source: {source})")
 
 async def process_message_for_salon(message: str, phone: str, salon_id: str, contact_name: str) -> str:
     """Process message with salon context"""
@@ -88,12 +99,36 @@ async def process_message_for_salon(message: str, phone: str, salon_id: str, con
                     salon_id = f"salon_{requested_salon}"
                     session["salon_id"] = salon_id
                     logger.info(f"🏢 User requested specific salon: {salon_id}")
+            else:
+                # For regular "hi" messages, check if we have a salon preference from QR access
+                if session.get("salon_id") and session.get("qr_source"):
+                    salon_id = session["salon_id"]
+                    logger.info(f"🎯 Using salon preference from QR access: {salon_id}")
+                elif not session.get("salon_id"):
+                    # Check if this is a new user and try to detect recent QR access
+                    recent_salon = get_most_recent_salon_access()
+                    if recent_salon:
+                        salon_id = recent_salon
+                        session["salon_id"] = salon_id
+                        session["qr_source"] = "recent_qr"
+                        logger.info(f"🎯 Auto-detected salon from recent QR access: {salon_id}")
+                    else:
+                        # No salon preference set, use the default salon_id passed to function
+                        session["salon_id"] = salon_id
+                        logger.info(f"🏢 No salon preference, using default: {salon_id}")
                     
             if message in ["restart", "start"]:
+                # Keep salon preference on restart
+                current_salon = session.get("salon_id", salon_id)
+                qr_source = session.get("qr_source")
                 clear_session(phone)
                 session = get_session_data(phone)
-                session["salon_id"] = salon_id
+                session["salon_id"] = current_salon
+                session["qr_source"] = qr_source
                 session["contact_name"] = contact_name
+            
+            # Use the determined salon_id
+            salon_id = session["salon_id"]
             
             # Get salon-specific services
             services = get_all_services(salon_id)
@@ -104,7 +139,12 @@ async def process_message_for_salon(message: str, phone: str, salon_id: str, con
                 reply_message = f"👋 Welcome to {salon_name}! ✨\n\n😔 Sorry, no services are currently available. Please contact us directly."
             else:
                 service_list = "\n".join([f"{i+1}. {s.name} (💰${s.price}, ⏱️{s.duration} mins)" for i, s in enumerate(services)])
-                reply_message = f"👋 Welcome to {salon_name}! ✨\n\n🎉 You are now connected to {salon_name} exclusively!\n\nHere are our services:\n\n{service_list}\n\n📝 Please enter the number of the service you'd like to book."
+                
+                # Show different messages based on how salon was determined
+                if session.get("qr_source"):
+                    reply_message = f"👋 Welcome to {salon_name}! ✨\n\n🎉 You scanned our QR code and are now connected exclusively to {salon_name}!\n\nHere are our services:\n\n{service_list}\n\n📝 Please enter the number of the service you'd like to book."
+                else:
+                    reply_message = f"👋 Welcome to {salon_name}! ✨\n\n🎉 You are now connected to {salon_name} exclusively!\n\nHere are our services:\n\n{service_list}\n\n📝 Please enter the number of the service you'd like to book."
         
         elif session["step"] == "service" and message.isdigit():
             logger.info(f"🔢 Processing service selection: {message} for salon: {salon_id}")
@@ -732,6 +772,26 @@ async def qr_code_page():
                         setTimeout(function() {{
                             window.location.reload();
                         }}, 30000);
+                        
+                        // Track that user accessed Luxury Spa QR page
+                        if (typeof(Storage) !== "undefined") {{
+                            localStorage.setItem("preferred_salon", "salon_c");
+                            localStorage.setItem("salon_name", "Luxury Spa & Salon");
+                            localStorage.setItem("qr_access_time", new Date().toISOString());
+                            console.log("🎯 Set salon preference: salon_c");
+                        }}
+                        
+                        // Also try to notify backend about QR access
+                        fetch('/api/track-qr-access', {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                salon_id: 'salon_c',
+                                salon_name: 'Luxury Spa & Salon',
+                                user_agent: navigator.userAgent,
+                                timestamp: new Date().toISOString()
+                            }})
+                        }}).catch(e => console.log('Track request failed:', e));
                     </script>
                 </head>
                 <body>
@@ -807,6 +867,9 @@ async def qr_code_page():
 async def qr_code_salon_a():
     """QR code page for Salon A (Downtown Beauty Salon) - SEPARATE CONNECTION"""
     try:
+        # Log QR access for this salon
+        log_qr_access("salon_a", "web")
+        
         # Use separate WhatsApp service for Salon A on port 3005
         whatsapp_url = "https://whatsapp-salon-a-production.up.railway.app"  # Future: separate deployment
         try:
@@ -854,14 +917,14 @@ async def qr_code_salon_a():
                         <div class="instructions">
                             <h3>🎯 How to Book at Downtown Beauty Salon:</h3>
                             <ol style="text-align: left; max-width: 400px; margin: 0 auto;">
-                                <li><strong>Send "hi salon_a"</strong> to connect to Downtown Beauty Salon</li>
+                                <li><strong>Send "hi"</strong> to start booking</li>
                                 <li><strong>Choose a service</strong> from our menu</li>
                                 <li><strong>Select your preferred barber</strong></li>
                                 <li><strong>Pick a time slot</strong></li>
                                 <li><strong>Confirm your booking</strong> ✨</li>
                             </ol>
                             <p style="margin-top: 15px; background: rgba(255,215,0,0.2); padding: 10px; border-radius: 5px; color: #ffd700;">
-                                <strong>Important:</strong> Send "hi salon_a" to ensure you connect to Downtown Beauty Salon specifically!
+                                <strong>✅ Automatic Connection:</strong> Just send "hi" - you'll be automatically connected to Downtown Beauty Salon!
                             </p>
                         </div>
                     </div>
@@ -911,6 +974,26 @@ async def qr_code_salon_a():
                     </style>
                     <script>
                         setTimeout(function() {{ window.location.reload(); }}, 30000);
+                        
+                        // Track that user accessed Luxury Spa QR page
+                        if (typeof(Storage) !== "undefined") {{
+                            localStorage.setItem("preferred_salon", "salon_c");
+                            localStorage.setItem("salon_name", "Luxury Spa & Salon");
+                            localStorage.setItem("qr_access_time", new Date().toISOString());
+                            console.log("🎯 Set salon preference: salon_c");
+                        }}
+                        
+                        // Also try to notify backend about QR access
+                        fetch('/api/track-qr-access', {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                salon_id: 'salon_c',
+                                salon_name: 'Luxury Spa & Salon',
+                                user_agent: navigator.userAgent,
+                                timestamp: new Date().toISOString()
+                            }})
+                        }}).catch(e => console.log('Track request failed:', e));
                     </script>
                 </head>
                 <body>
@@ -968,6 +1051,9 @@ async def qr_code_salon_a():
 async def qr_code_salon_b():
     """QR code page for Salon B (Uptown Hair Studio) - SEPARATE CONNECTION"""
     try:
+        # Log QR access for this salon
+        log_qr_access("salon_b", "web")
+        
         # Use separate WhatsApp service for Salon B
         whatsapp_url = settings.WHATSAPP_SERVICE_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
@@ -1058,6 +1144,26 @@ async def qr_code_salon_b():
                     </style>
                     <script>
                         setTimeout(function() {{ window.location.reload(); }}, 30000);
+                        
+                        // Track that user accessed Luxury Spa QR page
+                        if (typeof(Storage) !== "undefined") {{
+                            localStorage.setItem("preferred_salon", "salon_c");
+                            localStorage.setItem("salon_name", "Luxury Spa & Salon");
+                            localStorage.setItem("qr_access_time", new Date().toISOString());
+                            console.log("🎯 Set salon preference: salon_c");
+                        }}
+                        
+                        // Also try to notify backend about QR access
+                        fetch('/api/track-qr-access', {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                salon_id: 'salon_c',
+                                salon_name: 'Luxury Spa & Salon',
+                                user_agent: navigator.userAgent,
+                                timestamp: new Date().toISOString()
+                            }})
+                        }}).catch(e => console.log('Track request failed:', e));
                     </script>
                 </head>
                 <body>
@@ -1115,6 +1221,9 @@ async def qr_code_salon_b():
 async def qr_code_salon_c():
     """QR code page for Salon C (Luxury Spa & Salon) - SEPARATE CONNECTION"""
     try:
+        # Log QR access for this salon
+        log_qr_access("salon_c", "web")
+        
         # Use separate WhatsApp service for Salon C
         whatsapp_url = settings.WHATSAPP_SERVICE_URL
         response = requests.get(f"{whatsapp_url}/qr", timeout=10)
@@ -1148,14 +1257,14 @@ async def qr_code_salon_c():
                         <div class="instructions">
                             <h3>🎯 How to Book at Luxury Spa & Salon:</h3>
                             <ol style="text-align: left; max-width: 400px; margin: 0 auto;">
-                                <li><strong>Send "hi salon_c"</strong> to connect to Luxury Spa & Salon</li>
+                                <li><strong>Send "hi"</strong> to start booking</li>
                                 <li><strong>Choose a service</strong> from our spa menu</li>
                                 <li><strong>Select your preferred specialist</strong> (Priya or Dev)</li>
                                 <li><strong>Pick a time slot</strong></li>
                                 <li><strong>Confirm your booking</strong> ✨</li>
                             </ol>
                             <p style="margin-top: 15px; background: rgba(255,215,0,0.2); padding: 10px; border-radius: 5px; color: #ffd700;">
-                                <strong>Important:</strong> Send "hi salon_c" to ensure you connect to Luxury Spa & Salon specifically!
+                                <strong>✅ Automatic Connection:</strong> Just send "hi" - you'll be automatically connected to Luxury Spa & Salon!
                             </p>
                         </div>
                     </div>
@@ -1205,6 +1314,26 @@ async def qr_code_salon_c():
                     </style>
                     <script>
                         setTimeout(function() {{ window.location.reload(); }}, 30000);
+                        
+                        // Track that user accessed Luxury Spa QR page
+                        if (typeof(Storage) !== "undefined") {{
+                            localStorage.setItem("preferred_salon", "salon_c");
+                            localStorage.setItem("salon_name", "Luxury Spa & Salon");
+                            localStorage.setItem("qr_access_time", new Date().toISOString());
+                            console.log("🎯 Set salon preference: salon_c");
+                        }}
+                        
+                        // Also try to notify backend about QR access
+                        fetch('/api/track-qr-access', {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{
+                                salon_id: 'salon_c',
+                                salon_name: 'Luxury Spa & Salon',
+                                user_agent: navigator.userAgent,
+                                timestamp: new Date().toISOString()
+                            }})
+                        }}).catch(e => console.log('Track request failed:', e));
                     </script>
                 </head>
                 <body>
@@ -1222,10 +1351,10 @@ async def qr_code_salon_c():
                         </div>
                         
                         <div class="special-command">
-                            <h3>🎯 IMPORTANT: Salon Selection Command</h3>
-                            <p><strong>After scanning, send:</strong></p>
-                            <p style="font-size: 1.3em; font-weight: bold;">"hi salon_c"</p>
-                            <p>This ensures you connect to Luxury Spa & Salon specifically!</p>
+                            <h3>🎯 Automatic Salon Detection</h3>
+                            <p><strong>Great news!</strong> When you scan this QR code and send your first message, you'll be automatically connected to Downtown Beauty Salon.</p>
+                            <p style="font-size: 1.3em; font-weight: bold; color: #4CAF50;">✅ Just send "hi" - no special commands needed!</p>
+                            <p>Our system will detect that you accessed this salon's QR page.</p>
                         </div>
                         
                         <div class="instructions">
@@ -1234,8 +1363,8 @@ async def qr_code_salon_c():
                                 <li>Scan the QR code above with WhatsApp</li>
                                 <li>Open WhatsApp → Settings → Linked Devices</li>
                                 <li>Tap "Link a Device" and scan</li>
-                                <li><strong>Send "hi salon_c"</strong> to connect to this salon</li>
-                                <li>You'll only see Luxury Spa & Salon services</li>
+                                <li><strong>Send "hi"</strong> - you'll automatically connect to this salon</li>
+                                <li>You'll only see Downtown Beauty Salon services and barbers</li>
                             </ol>
                         </div>
                     </div>
@@ -1356,6 +1485,73 @@ async def qr_directory():
         </body>
         </html>
     """)
+
+@app.get("/api/set-salon-preference/{phone}/{salon_id}")
+async def set_salon_preference_endpoint(phone: str, salon_id: str):
+    """Set salon preference for a phone number (called when QR is accessed)"""
+    try:
+        # Remove WhatsApp suffixes
+        clean_phone = phone.replace("@c.us", "").replace("@g.us", "")
+        set_salon_preference(clean_phone, salon_id, "qr")
+        return {"status": "success", "message": f"Salon preference set to {salon_id} for {clean_phone}"}
+    except Exception as e:
+        logger.error(f"Error setting salon preference: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/track-qr-access")
+async def track_qr_access(request: Request):
+    """Track when someone accesses a salon QR page"""
+    try:
+        data = await request.json()
+        salon_id = data.get("salon_id")
+        user_agent = data.get("user_agent", "")
+        
+        logger.info(f"📱 QR page accessed for salon: {salon_id}, user_agent: {user_agent}")
+        
+        # Store in a temporary mapping (in production, use Redis or database)
+        # This will be used when the user first messages
+        return {"status": "success", "salon_id": salon_id}
+    except Exception as e:
+        logger.error(f"Error tracking QR access: {e}")
+        return {"status": "error", "message": str(e)}
+
+def log_qr_access(salon_id: str, source: str = "web"):
+    """Log when a salon QR page is accessed"""
+    timestamp = datetime.now().isoformat()
+    if salon_id not in qr_access_log:
+        qr_access_log[salon_id] = []
+    
+    qr_access_log[salon_id].append({
+        "timestamp": timestamp,
+        "source": source
+    })
+    
+    # Keep only last 10 accesses per salon
+    qr_access_log[salon_id] = qr_access_log[salon_id][-10:]
+    logger.info(f"📱 QR access logged for {salon_id} at {timestamp}")
+
+def get_most_recent_salon_access() -> Optional[str]:
+    """Get the most recently accessed salon QR"""
+    if not qr_access_log:
+        return None
+    
+    latest_salon = None
+    latest_time = None
+    
+    for salon_id, accesses in qr_access_log.items():
+        if accesses:
+            last_access = accesses[-1]
+            access_time = datetime.fromisoformat(last_access["timestamp"])
+            
+            if latest_time is None or access_time > latest_time:
+                latest_time = access_time
+                latest_salon = salon_id
+    
+    # Only return if accessed within last 5 minutes
+    if latest_time and (datetime.now() - latest_time).total_seconds() < 300:
+        return latest_salon
+    
+    return None
 
 if __name__ == "__main__":
     import uvicorn
