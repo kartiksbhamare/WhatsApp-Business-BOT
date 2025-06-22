@@ -6,21 +6,21 @@ const path = require('path');
 const SALON_CONFIG = {
     salon_a: {
         name: "Downtown Beauty Salon",
-        phone: "+1234567890",
+        phone: "+919307748525",
         color: "#4CAF50",
-        whatsapp_url: "https://wa.me/1234567890?text=Hi%20I%20want%20to%20book%20at%20Downtown%20Beauty%20Salon"
+        whatsapp_url: "https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Downtown%20Beauty%20Salon"
     },
     salon_b: {
         name: "Uptown Hair Studio", 
-        phone: "+0987654321",
+        phone: "+919307748525",
         color: "#2196F3",
-        whatsapp_url: "https://wa.me/987654321?text=Hi%20I%20want%20to%20book%20at%20Uptown%20Hair%20Studio"
+        whatsapp_url: "https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Uptown%20Hair%20Studio"
     },
     salon_c: {
         name: "Luxury Spa & Salon",
-        phone: "+1122334455", 
+        phone: "+919307748525", 
         color: "#9C27B0",
-        whatsapp_url: "https://wa.me/1122334455?text=Hi%20I%20want%20to%20book%20at%20Luxury%20Spa%20and%20Salon"
+        whatsapp_url: "https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Luxury%20Spa%20and%20Salon"
     }
 };
 

@@ -334,9 +334,9 @@ async def root():
                 "legacy": "/qr"
             },
             "salons": [
-                {"id": "salon_a", "name": "Downtown Beauty Salon", "phone": "+1234567890"},
-                {"id": "salon_b", "name": "Uptown Hair Studio", "phone": "+0987654321"},
-                {"id": "salon_c", "name": "Luxury Spa & Salon", "phone": "+1122334455"}
+                {"id": "salon_a", "name": "Downtown Beauty Salon", "phone": "+919307748525"},
+                {"id": "salon_b", "name": "Uptown Hair Studio", "phone": "+919307748525"},
+                {"id": "salon_c", "name": "Luxury Spa & Salon", "phone": "+919307748525"}
             ]
         }
     }
@@ -1116,9 +1116,9 @@ async def qr_web_page(salon_id: str):
             "salon_c": "https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/github_qr_salon_c.png"
         }
         whatsapp_urls = {
-            "salon_a": "https://wa.me/1234567890?text=Hi%20I%20want%20to%20book%20at%20Downtown%20Beauty%20Salon",
-            "salon_b": "https://wa.me/987654321?text=Hi%20I%20want%20to%20book%20at%20Uptown%20Hair%20Studio",
-            "salon_c": "https://wa.me/1122334455?text=Hi%20I%20want%20to%20book%20at%20Luxury%20Spa%20and%20Salon"
+            "salon_a": "https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Downtown%20Beauty%20Salon",
+            "salon_b": "https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Uptown%20Hair%20Studio",
+            "salon_c": "https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Luxury%20Spa%20and%20Salon"
         }
         
         if salon_id not in salon_names:

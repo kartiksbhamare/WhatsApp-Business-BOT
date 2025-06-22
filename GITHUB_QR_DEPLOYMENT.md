@@ -8,17 +8,17 @@ Your multi-salon WhatsApp booking system now uses **GitHub-hosted QR codes** for
 
 ## Downtown Beauty Salon
 - **QR Code URL**: https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/github_qr_salon_a.png
-- **WhatsApp Link**: https://wa.me/1234567890?text=Hi%20I%20want%20to%20book%20at%20Downtown%20Beauty%20Salon
+- **WhatsApp Link**: https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Downtown%20Beauty%20Salon
 - **File**: github_qr_salon_a.png
 
 ## Uptown Hair Studio
 - **QR Code URL**: https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/github_qr_salon_b.png
-- **WhatsApp Link**: https://wa.me/987654321?text=Hi%20I%20want%20to%20book%20at%20Uptown%20Hair%20Studio
+- **WhatsApp Link**: https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Uptown%20Hair%20Studio
 - **File**: github_qr_salon_b.png
 
 ## Luxury Spa & Salon
 - **QR Code URL**: https://raw.githubusercontent.com/kartiksbhamare/WhatsApp-Business-BOT/main/github_qr_salon_c.png
-- **WhatsApp Link**: https://wa.me/1122334455?text=Hi%20I%20want%20to%20book%20at%20Luxury%20Spa%20and%20Salon
+- **WhatsApp Link**: https://wa.me/919307748525?text=Hi%20I%20want%20to%20book%20at%20Luxury%20Spa%20and%20Salon
 - **File**: github_qr_salon_c.png
 
 ## 🎯 How It Works
