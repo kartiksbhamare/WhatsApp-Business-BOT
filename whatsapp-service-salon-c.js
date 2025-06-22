@@ -3,7 +3,7 @@ const express = require('express');
 const qrcode = require('qrcode');
 
 // Salon C Configuration
-const PORT = process.env.SALON_C_PORT || 3003;
+const PORT = process.env.SALON_C_PORT || 3007;
 const SALON_ID = 'salon_c';
 const SALON_NAME = 'Luxury Spa & Salon';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';

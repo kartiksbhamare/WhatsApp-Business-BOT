@@ -5,7 +5,7 @@ const fs = require('fs');
 const axios = require('axios');
 
 // Salon B Configuration
-const PORT = process.env.SALON_B_PORT || 3002;
+const PORT = process.env.SALON_B_PORT || 3006;
 const SALON_ID = 'salon_b';
 const SALON_NAME = 'Uptown Hair Studio';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';

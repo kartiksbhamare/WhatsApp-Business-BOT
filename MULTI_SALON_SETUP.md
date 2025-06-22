@@ -18,7 +18,7 @@ This implementation supports **multiple salons** with a single backend and multi
 ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
 │ Salon A          │ │ Salon B          │ │ Salon C          │
 │ Downtown Beauty  │ │ Uptown Hair      │ │ Luxury Spa       │
-│ Port 3001        │ │ Port 3002        │ │ Port 3003        │
+│ Port 3005        │ │ Port 3006        │ │ Port 3007        │
 │ Phone: +1234...  │ │ Phone: +0987...  │ │ Phone: +1122...  │
 └──────────────────┘ └──────────────────┘ └──────────────────┘
 ```
@@ -36,9 +36,9 @@ This implementation supports **multiple salons** with a single backend and multi
 ```
 
 ### 3. **Connect WhatsApp Numbers**
-- **Salon A**: http://localhost:3001/qr
-- **Salon B**: http://localhost:3002/qr  
-- **Salon C**: http://localhost:3003/qr
+- **Salon A**: http://localhost:3005/qr
+- **Salon B**: http://localhost:3006/qr  
+- **Salon C**: http://localhost:3007/qr
 
 ### 4. **Stop All Services**
 ```bash
@@ -49,9 +49,9 @@ This implementation supports **multiple salons** with a single backend and multi
 
 | Salon | Name | Port | Phone | WhatsApp QR |
 |-------|------|------|-------|-------------|
-| **Salon A** | Downtown Beauty Salon | 3001 | +1234567890 | http://localhost:3001/qr |
-| **Salon B** | Uptown Hair Studio | 3002 | +0987654321 | http://localhost:3002/qr |
-| **Salon C** | Luxury Spa & Salon | 3003 | +1122334455 | http://localhost:3003/qr |
+| **Salon A** | Downtown Beauty Salon | 3005 | +1234567890 | http://localhost:3005/qr |
+| **Salon B** | Uptown Hair Studio | 3006 | +0987654321 | http://localhost:3006/qr |
+| **Salon C** | Luxury Spa & Salon | 3007 | +1122334455 | http://localhost:3007/qr |
 
 ## 🛠️ Services & Data
 
@@ -108,7 +108,7 @@ curl http://localhost:8000/api/services/salon_a
 curl http://localhost:8000/api/barbers/salon_b
 
 # Check Salon A health
-curl http://localhost:3001/health
+curl http://localhost:3005/health
 ```
 
 ## 🔧 Configuration
@@ -119,9 +119,9 @@ curl http://localhost:3001/health
 BACKEND_URL=http://127.0.0.1:8000
 
 # Salon Ports
-SALON_A_PORT=3001
-SALON_B_PORT=3002  
-SALON_C_PORT=3003
+SALON_A_PORT=3005
+SALON_B_PORT=3006  
+SALON_C_PORT=3007
 
 # Salon Phone Numbers
 SALON_A_PHONE=+1234567890
@@ -209,9 +209,9 @@ bookings/
 curl http://localhost:8000/health
 
 # WhatsApp service health
-curl http://localhost:3001/health  # Salon A
-curl http://localhost:3002/health  # Salon B
-curl http://localhost:3003/health  # Salon C
+curl http://localhost:3005/health  # Salon A
+curl http://localhost:3006/health  # Salon B
+curl http://localhost:3007/health  # Salon C
 ```
 
 ### **Log Monitoring**
@@ -227,7 +227,7 @@ Each service logs with salon identifiers:
 1. **Port Already in Use**
    ```bash
    # Check what's using the port
-   lsof -ti :3001
+   lsof -ti :3005
    
    # Kill the process
    kill -9 <PID>

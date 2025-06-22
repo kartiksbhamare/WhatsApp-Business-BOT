@@ -47,9 +47,9 @@ echo "🛑 Stopping all services:"
 echo ""
 
 stop_port 8000 "Backend API"
-stop_port 3001 "Salon A WhatsApp"
-stop_port 3002 "Salon B WhatsApp"
-stop_port 3003 "Salon C WhatsApp"
+stop_port 3005 "Salon A WhatsApp"
+stop_port 3006 "Salon B WhatsApp"
+stop_port 3007 "Salon C WhatsApp"
 
 # Also look for node processes that might be running
 echo "🔍 Checking for remaining Node.js processes..."

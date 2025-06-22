@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
     # Multi-Salon WhatsApp Service URLs
-    SALON_A_WHATSAPP_URL: str = "http://localhost:3001"
-    SALON_B_WHATSAPP_URL: str = "http://localhost:3002"
-    SALON_C_WHATSAPP_URL: str = "http://localhost:3003"
+    SALON_A_WHATSAPP_URL: str = "http://localhost:3005"
+    SALON_B_WHATSAPP_URL: str = "http://localhost:3006"
+    SALON_C_WHATSAPP_URL: str = "http://localhost:3007"
     
     # Multi-Salon Phone Numbers
     SALON_A_PHONE: str = "+1234567890"

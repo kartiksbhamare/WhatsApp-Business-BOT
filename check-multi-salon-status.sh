@@ -42,15 +42,15 @@ echo "📊 Service Health Check:"
 echo ""
 
 check_service "Backend API" "http://localhost:8000/health" 8000
-check_service "Salon A WhatsApp" "http://localhost:3001/health" 3001  
-check_service "Salon B WhatsApp" "http://localhost:3002/health" 3002
-check_service "Salon C WhatsApp" "http://localhost:3003/health" 3003
+check_service "Salon A WhatsApp" "http://localhost:3005/health" 3005  
+check_service "Salon B WhatsApp" "http://localhost:3006/health" 3006
+check_service "Salon C WhatsApp" "http://localhost:3007/health" 3007
 
 echo "🎯 Quick Links:"
 echo "📊 Backend Health: http://localhost:8000/health"
-echo "📱 Salon A QR: http://localhost:3001/qr"
-echo "📱 Salon B QR: http://localhost:3002/qr"  
-echo "📱 Salon C QR: http://localhost:3003/qr"
+echo "📱 Salon A QR: http://localhost:3005/qr"
+echo "📱 Salon B QR: http://localhost:3006/qr"  
+echo "📱 Salon C QR: http://localhost:3007/qr"
 echo ""
 echo "📋 API Endpoints:"
 echo "🏢 Salons: http://localhost:8000/api/salons"
