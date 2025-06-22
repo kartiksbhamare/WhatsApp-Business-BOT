@@ -1,0 +1,10 @@
+{
+  "salon_id": "salon_a",
+  "salon_name": "Downtown Beauty Salon",
+  "is_connected": false,
+  "phone_number": null,
+  "connected_at": null,
+  "last_seen": null,
+  "connection_count": 0,
+  "qr_generated_count": 4
+}
