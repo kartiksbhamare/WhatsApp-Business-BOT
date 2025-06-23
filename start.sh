@@ -9,6 +9,12 @@ export CHROME_BIN=/usr/bin/google-chrome
 export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 
+# Clean up any existing Chrome processes
+echo "🧹 Cleaning up any existing Chrome processes..."
+pkill -f chrome || echo "No existing Chrome processes found"
+pkill -f chromium || echo "No existing Chromium processes found"
+sleep 2
+
 # Check if Chrome is available
 echo "🔍 Checking Chrome installation..."
 if command -v google-chrome &> /dev/null; then
@@ -21,7 +27,11 @@ fi
 # Start virtual display
 echo "🖥️ Starting virtual display..."
 Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-sleep 2
+sleep 3
+
+# Test Chrome with virtual display
+echo "🧪 Testing Chrome with virtual display..."
+timeout 10 google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=1000 --run-all-compositor-stages-before-draw --dump-dom about:blank > /dev/null 2>&1 && echo "✅ Chrome test successful" || echo "⚠️ Chrome test failed but continuing"
 
 # Check Node.js and npm versions
 echo "🔍 Checking Node.js..."
@@ -43,27 +53,27 @@ node whatsapp-service-unified.js > whatsapp.log 2>&1 &
 WHATSAPP_PID=$!
 echo "✅ WhatsApp service started with PID: $WHATSAPP_PID"
 
-# Wait for WhatsApp service to initialize
-echo "⏰ Waiting for WhatsApp service to initialize..."
-sleep 20
+# Wait longer for WhatsApp service to initialize (Chrome needs more time)
+echo "⏰ Waiting for WhatsApp service to initialize (45 seconds)..."
+sleep 45
 
 # Check if WhatsApp service is running
 if ps -p $WHATSAPP_PID > /dev/null; then
     echo "✅ WhatsApp service is running"
     echo "📋 Checking if ports are listening..."
-    netstat -tulpn | grep :300 || echo "No ports 3005-3007 found"
+    netstat -tulpn | grep :300 || echo "Ports may still be starting up..."
 else
     echo "❌ WhatsApp service failed to start"
     echo "📋 WhatsApp logs:"
     cat whatsapp.log || echo "No logs available"
     echo "📋 Attempting to start WhatsApp service directly..."
     node whatsapp-service-unified.js &
-    sleep 10
+    sleep 15
 fi
 
 # Show recent WhatsApp logs
 echo "📋 Recent WhatsApp logs:"
-tail -20 whatsapp.log || echo "No recent logs"
+tail -30 whatsapp.log || echo "No recent logs"
 
 # Start FastAPI backend (this keeps the container alive)
 echo "🐍 Starting FastAPI backend on port ${PORT:-8080}..."

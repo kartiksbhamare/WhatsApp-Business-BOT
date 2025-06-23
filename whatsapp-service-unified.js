@@ -170,14 +170,41 @@ function initializeSalon(salonId) {
                 '--ignore-certificate-errors-spki-list',
                 '--user-data-dir=/tmp/chrome-user-data',
                 '--remote-debugging-port=9222',
-                '--disable-features=TranslateUI,BlinkGenPropertyTrees'
+                '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+                '--no-crash-upload',
+                '--disable-crash-reporter',
+                '--disable-breakpad',
+                '--disable-dev-shm-usage',
+                '--disable-extensions-file-access-check',
+                '--disable-extensions-http-throttling',
+                '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess',
+                '--disable-ipc-flooding-protection',
+                '--disable-renderer-backgrounding',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-field-trial-config',
+                '--disable-back-forward-cache',
+                '--disable-features=TranslateUI',
+                '--disable-component-extensions-with-background-pages',
+                '--disable-default-apps',
+                '--disable-domain-reliability',
+                '--disable-background-mode',
+                '--force-color-profile=srgb',
+                '--metrics-recording-only',
+                '--disable-cpu-trace',
+                '--enable-automation',
+                '--password-store=basic',
+                '--use-mock-keychain'
             ],
             defaultViewport: {
                 width: 1366,
                 height: 768
             },
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
-            timeout: 60000
+            timeout: 120000,
+            ignoreDefaultArgs: ['--disable-extensions'],
+            handleSIGINT: false,
+            handleSIGTERM: false,
+            handleSIGHUP: false
         }
     });
     
@@ -310,25 +337,54 @@ function initializeSalon(salonId) {
     // Setup Express routes for this salon
     setupSalonRoutes(salonId);
     
-    // Initialize WhatsApp client with error handling
-    try {
-        console.log(`🔄 [${salon.name}] Initializing WhatsApp client...`);
-        salon.client.initialize();
-    } catch (error) {
-        console.error(`❌ [${salon.name}] Error initializing WhatsApp client:`, error.message);
-        salon.isReady = false;
-        updateConnectionStatus(salonId, false);
+    // Initialize WhatsApp client with enhanced error handling
+    async function initializeClientWithRetry(retryCount = 0) {
+        const maxRetries = 3;
         
-        // Retry after 10 seconds
-        setTimeout(() => {
-            console.log(`🔄 [${salon.name}] Retrying initialization...`);
-            try {
-                salon.client.initialize();
-            } catch (retryError) {
-                console.error(`❌ [${salon.name}] Retry failed:`, retryError.message);
+        try {
+            console.log(`🔄 [${salon.name}] Initializing WhatsApp client (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+            
+            // Clean up any existing Chrome processes
+            if (retryCount > 0) {
+                console.log(`🧹 [${salon.name}] Cleaning up previous attempt...`);
+                try {
+                    // Kill any hanging Chrome processes
+                    require('child_process').exec('pkill -f chrome', () => {});
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } catch (cleanupError) {
+                    console.log(`ℹ️ [${salon.name}] Cleanup completed`);
+                }
             }
-        }, 10000);
+            
+            // Initialize the client
+            await salon.client.initialize();
+            console.log(`✅ [${salon.name}] WhatsApp client initialization started successfully`);
+            
+        } catch (error) {
+            console.error(`❌ [${salon.name}] Error initializing WhatsApp client (attempt ${retryCount + 1}):`, error.message);
+            salon.isReady = false;
+            updateConnectionStatus(salonId, false);
+            
+            if (retryCount < maxRetries) {
+                const retryDelay = (retryCount + 1) * 15000; // 15s, 30s, 45s
+                console.log(`🔄 [${salon.name}] Retrying in ${retryDelay/1000} seconds...`);
+                
+                setTimeout(() => {
+                    initializeClientWithRetry(retryCount + 1);
+                }, retryDelay);
+            } else {
+                console.error(`❌ [${salon.name}] All initialization attempts failed. Manual intervention required.`);
+                // Set a longer retry after all attempts fail
+                setTimeout(() => {
+                    console.log(`🔄 [${salon.name}] Final retry attempt after 5 minutes...`);
+                    initializeClientWithRetry(0);
+                }, 300000); // 5 minutes
+            }
+        }
     }
+    
+    // Start initialization
+    initializeClientWithRetry();
 }
 
 // Setup Express routes for a salon
