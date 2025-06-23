@@ -1,10 +1,10 @@
 {
   "salon_id": "salon_c",
   "salon_name": "Luxury Spa & Salon",
-  "is_connected": true,
+  "is_connected": false,
   "phone_number": "919307748525",
-  "connected_at": "2025-06-23T17:41:57.577Z",
-  "last_seen": "2025-06-23T17:41:57.577Z",
-  "connection_count": 4,
-  "qr_generated_count": 1
+  "connected_at": "2025-06-23T18:46:02.745Z",
+  "last_seen": "2025-06-23T18:46:03.152Z",
+  "connection_count": 6,
+  "qr_generated_count": 27
 }

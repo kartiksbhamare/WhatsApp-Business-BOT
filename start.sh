@@ -9,11 +9,13 @@ export CHROME_BIN=/usr/bin/google-chrome
 export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 
-# Clean up any existing Chrome processes
-echo "🧹 Cleaning up any existing Chrome processes..."
+# Clean up any existing Chrome processes and temp files
+echo "🧹 Cleaning up any existing Chrome processes and temp files..."
 pkill -f chrome || echo "No existing Chrome processes found"
 pkill -f chromium || echo "No existing Chromium processes found"
-sleep 2
+rm -rf /tmp/chrome-user-data* || echo "No temp Chrome data to clean"
+rm -rf /tmp/.org.chromium.* || echo "No Chromium temp files to clean"
+sleep 3
 
 # Check if Chrome is available
 echo "🔍 Checking Chrome installation..."
@@ -24,14 +26,18 @@ else
     exit 1
 fi
 
-# Start virtual display
+# Start virtual display with larger screen
 echo "🖥️ Starting virtual display..."
-Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-sleep 3
+Xvfb :99 -screen 0 1920x1080x24 -ac -nolisten tcp -dpi 96 > /dev/null 2>&1 &
+sleep 5
 
-# Test Chrome with virtual display
-echo "🧪 Testing Chrome with virtual display..."
-timeout 10 google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=1000 --run-all-compositor-stages-before-draw --dump-dom about:blank > /dev/null 2>&1 && echo "✅ Chrome test successful" || echo "⚠️ Chrome test failed but continuing"
+# Test Chrome with virtual display multiple times for stability
+echo "🧪 Testing Chrome stability with virtual display..."
+for i in {1..3}; do
+    echo "🔄 Chrome test attempt $i/3..."
+    timeout 15 google-chrome --headless --no-sandbox --disable-gpu --virtual-time-budget=2000 --run-all-compositor-stages-before-draw --dump-dom about:blank > /dev/null 2>&1 && echo "✅ Chrome test $i successful" || echo "⚠️ Chrome test $i failed but continuing"
+    sleep 2
+done
 
 # Check Node.js and npm versions
 echo "🔍 Checking Node.js..."
@@ -53,9 +59,9 @@ node whatsapp-service-unified.js > whatsapp.log 2>&1 &
 WHATSAPP_PID=$!
 echo "✅ WhatsApp service started with PID: $WHATSAPP_PID"
 
-# Wait longer for WhatsApp service to initialize (Chrome needs more time)
-echo "⏰ Waiting for WhatsApp service to initialize (45 seconds)..."
-sleep 45
+# Wait longer for WhatsApp service to initialize (Chrome needs more time for stability)
+echo "⏰ Waiting for WhatsApp service to initialize (60 seconds)..."
+sleep 60
 
 # Check if WhatsApp service is running
 if ps -p $WHATSAPP_PID > /dev/null; then

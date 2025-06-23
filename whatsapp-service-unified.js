@@ -127,7 +127,7 @@ function initializeSalon(salonId) {
     salon.client = new Client({
         authStrategy: new LocalAuth({ 
             clientId: salon.clientId,
-            dataPath: `.wwebjs_auth/session-${salon.clientId}`
+            dataPath: `./.wwebjs_auth/session-${salon.clientId}`
         }),
         puppeteer: {
             headless: true,
@@ -171,8 +171,8 @@ function initializeSalon(salonId) {
                 '--ignore-certificate-errors',
                 '--ignore-ssl-errors',
                 '--ignore-certificate-errors-spki-list',
-                `--user-data-dir=/tmp/chrome-user-data-${salon.clientId}`,
-                `--remote-debugging-port=${9222 + parseInt(salon.port) - 3005}`,
+                '--user-data-dir=/tmp/chrome-user-data',
+                '--remote-debugging-port=9222',
                 '--disable-features=TranslateUI,BlinkGenPropertyTrees',
                 '--no-crash-upload',
                 '--disable-crash-reporter',
@@ -197,22 +197,38 @@ function initializeSalon(salonId) {
                 '--enable-automation',
                 '--password-store=basic',
                 '--use-mock-keychain',
-                '--disable-session-crashed-bubble',
-                '--disable-infobars',
-                '--no-default-browser-check',
-                '--disable-default-browser-check'
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer',
+                '--run-all-compositor-stages-before-draw',
+                '--disable-threaded-animation',
+                '--disable-threaded-scrolling',
+                '--disable-checker-imaging',
+                '--disable-new-content-rendering-timeout',
+                '--disable-image-animation-resync',
+                '--disable-partial-raster',
+                '--disable-skia-runtime-opts',
+                '--disable-shared-workers',
+                '--in-process-gpu',
+                '--disable-software-rasterizer'
             ],
             defaultViewport: {
                 width: 1366,
-                height: 768
+                height: 768,
+                deviceScaleFactor: 1,
+                isMobile: false,
+                hasTouch: false,
+                isLandscape: true
             },
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
-            timeout: 120000,
+            timeout: 180000,
             ignoreDefaultArgs: ['--disable-extensions', '--enable-automation'],
             handleSIGINT: false,
             handleSIGTERM: false,
             handleSIGHUP: false,
-            devtools: false
+            devtools: false,
+            pipe: true,
+            dumpio: false,
+            slowMo: 100
         }
     });
     
@@ -259,14 +275,27 @@ function initializeSalon(salonId) {
         salon.connectionStatus.qr_generated_count += 1;
         saveConnectionStatus(salonId);
         
-        // Generate QR code image
-        qrcode.toFile(`${salonId}_qr.png`, qr, (err) => {
+        // Generate QR code image with higher error correction
+        qrcode.toFile(`${salonId}_qr.png`, qr, {
+            errorCorrectionLevel: 'H',
+            type: 'png',
+            quality: 0.92,
+            margin: 1,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            },
+            width: 512
+        }, (err) => {
             if (err) {
                 console.error(`❌ [${salon.name}] Error generating QR code image:`, err);
             } else {
                 console.log(`✅ [${salon.name}] QR code image saved as ${salonId}_qr.png`);
             }
         });
+        
+        // Log QR generation for debugging
+        console.log(`📊 [${salon.name}] QR Stats - Generated: ${salon.connectionStatus.qr_generated_count} times`);
     });
     
     // Message received event
@@ -352,13 +381,18 @@ function initializeSalon(salonId) {
         try {
             console.log(`🔄 [${salon.name}] Initializing WhatsApp client (attempt ${retryCount + 1}/${maxRetries + 1})...`);
             
-            // Clean up any existing Chrome processes
+            // Clean up any existing Chrome processes and sessions
             if (retryCount > 0) {
                 console.log(`🧹 [${salon.name}] Cleaning up previous attempt...`);
                 try {
                     // Kill any hanging Chrome processes
                     require('child_process').exec('pkill -f chrome', () => {});
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Clean up temp directories
+                    require('child_process').exec('rm -rf /tmp/chrome-user-data*', () => {});
+                    
+                    // Wait for cleanup
+                    await new Promise(resolve => setTimeout(resolve, 3000));
                 } catch (cleanupError) {
                     console.log(`ℹ️ [${salon.name}] Cleanup completed`);
                 }
@@ -373,8 +407,22 @@ function initializeSalon(salonId) {
             salon.isReady = false;
             updateConnectionStatus(salonId, false);
             
+            // If it's a session/connection error, clean up session files
+            if (error.message.includes('Session') || error.message.includes('Target closed') || error.message.includes('Protocol error')) {
+                console.log(`🗑️ [${salon.name}] Cleaning up session files due to connection error...`);
+                try {
+                    const sessionPath = `.wwebjs_auth/session-${salon.clientId}`;
+                    if (require('fs').existsSync(sessionPath)) {
+                        require('fs').rmSync(sessionPath, { recursive: true });
+                        console.log(`✅ [${salon.name}] Session files cleaned up`);
+                    }
+                } catch (sessionError) {
+                    console.log(`ℹ️ [${salon.name}] Session cleanup completed`);
+                }
+            }
+            
             if (retryCount < maxRetries) {
-                const retryDelay = (retryCount + 1) * 15000; // 15s, 30s, 45s
+                const retryDelay = (retryCount + 1) * 20000; // 20s, 40s, 60s
                 console.log(`🔄 [${salon.name}] Retrying in ${retryDelay/1000} seconds...`);
                 
                 setTimeout(() => {
@@ -384,9 +432,9 @@ function initializeSalon(salonId) {
                 console.error(`❌ [${salon.name}] All initialization attempts failed. Manual intervention required.`);
                 // Set a longer retry after all attempts fail
                 setTimeout(() => {
-                    console.log(`🔄 [${salon.name}] Final retry attempt after 5 minutes...`);
+                    console.log(`🔄 [${salon.name}] Final retry attempt after 10 minutes...`);
                     initializeClientWithRetry(0);
-                }, 300000); // 5 minutes
+                }, 600000); // 10 minutes
             }
         }
     }
