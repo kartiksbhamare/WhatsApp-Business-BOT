@@ -1,6 +1,6 @@
 [build]
 # Force Railway to use Dockerfile instead of Nixpacks
-builder = "nixpacks"
+builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]

@@ -151,13 +151,33 @@ function initializeSalon(salonId) {
                 '--disable-translate',
                 '--disable-ipc-flooding-protection',
                 '--memory-pressure-off',
-                '--max_old_space_size=4096'
+                '--max_old_space_size=4096',
+                '--disable-background-networking',
+                '--disable-component-update',
+                '--disable-client-side-phishing-detection',
+                '--disable-sync',
+                '--disable-default-apps',
+                '--hide-scrollbars',
+                '--disable-logging',
+                '--disable-notifications',
+                '--disable-permissions-api',
+                '--disable-popup-blocking',
+                '--disable-save-password-bubble',
+                '--disable-search-engine-choice-screen',
+                '--disable-web-security',
+                '--ignore-certificate-errors',
+                '--ignore-ssl-errors',
+                '--ignore-certificate-errors-spki-list',
+                '--user-data-dir=/tmp/chrome-user-data',
+                '--remote-debugging-port=9222',
+                '--disable-features=TranslateUI,BlinkGenPropertyTrees'
             ],
             defaultViewport: {
                 width: 1366,
                 height: 768
             },
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
+            timeout: 60000
         }
     });
     
