@@ -32,7 +32,14 @@ const SALONS = {
 
 // Railway Single-Salon Mode - Only initialize one salon to conserve resources
 const ACTIVE_SALON = process.env.ACTIVE_SALON || 'salon_a'; // Default to salon_a
+
+// Railway QR-Only Mode - Generate QR without persistent Chrome sessions
+const QR_ONLY_MODE = process.env.QR_ONLY_MODE === 'true' || process.env.NODE_ENV === 'production';
+
 console.log(`🎯 Railway Single-Salon Mode: Initializing only ${ACTIVE_SALON}`);
+if (QR_ONLY_MODE) {
+    console.log(`🔧 QR-Only Mode: Enabled for Railway compatibility`);
+}
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
 
@@ -685,13 +692,159 @@ async function initializeActiveSalon() {
     const salon = SALONS[ACTIVE_SALON];
     console.log(`\n🔄 Initializing ${salon.name}...`);
     
-    // Initialize only the active salon
-    initializeSalon(ACTIVE_SALON);
+    // Choose initialization method based on environment
+    if (QR_ONLY_MODE) {
+        console.log(`🔧 Using QR-Only mode for Railway compatibility`);
+        
+        // Setup Express routes first
+        setupSalonRoutes(ACTIVE_SALON);
+        
+        // Initialize in QR-only mode
+        initializeSalonQROnly(ACTIVE_SALON);
+    } else {
+        console.log(`🔧 Using full WhatsApp client mode for local development`);
+        // Initialize the full salon with persistent client
+        initializeSalon(ACTIVE_SALON);
+    }
     
     console.log('✅ Active salon initialization started!');
     console.log(`\n📋 Active Salon:`);
     console.log(`  🏢 ${salon.name} (${ACTIVE_SALON}): http://localhost:${salon.port}/qr`);
     console.log(`\n💡 To switch salons, set ACTIVE_SALON environment variable to: ${Object.keys(SALONS).join(', ')}`);
+    
+    if (QR_ONLY_MODE) {
+        console.log(`\n🔧 QR-Only Mode: Chrome sessions will be temporary to avoid Railway resource conflicts`);
+    }
+}
+
+// QR-Only initialization for Railway compatibility
+async function initializeSalonQROnly(salonId) {
+    const salon = salonData[salonId];
+    
+    console.log(`🔧 [${salon.name}] Initializing in QR-Only mode for Railway...`);
+    
+    // Load connection status
+    loadConnectionStatus(salonId);
+    
+    // Create a temporary client just for QR generation
+    let tempClient = null;
+    
+    try {
+        console.log(`📱 [${salon.name}] Creating temporary WhatsApp client for QR generation...`);
+        
+        tempClient = new Client({
+            authStrategy: new LocalAuth({ 
+                clientId: salon.clientId,
+                dataPath: `./.wwebjs_auth/session-${salon.clientId}`
+            }),
+            puppeteer: {
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--no-first-run',
+                    '--single-process',
+                    '--disable-web-security',
+                    '--disable-extensions',
+                    '--disable-default-apps',
+                    '--memory-pressure-off',
+                    '--max_old_space_size=1024',
+                    '--user-data-dir=/tmp/chrome-qr-temp',
+                    '--disable-background-networking',
+                    '--disable-background-mode'
+                ],
+                defaultViewport: {
+                    width: 1024,
+                    height: 768
+                },
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
+                timeout: 60000
+            }
+        });
+        
+        // Set up QR event listener
+        tempClient.on('qr', (qr) => {
+            console.log(`📱 [${salon.name}] QR Code generated in QR-Only mode`);
+            salon.qrCodeData = qr;
+            salon.connectionStatus.qr_generated_count += 1;
+            saveConnectionStatus(salonId);
+            
+            // Generate QR code image
+            qrcode.toFile(`${salonId}_qr.png`, qr, {
+                errorCorrectionLevel: 'H',
+                type: 'png',
+                quality: 0.92,
+                margin: 1,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                },
+                width: 512
+            }, (err) => {
+                if (err) {
+                    console.error(`❌ [${salon.name}] Error generating QR code image:`, err);
+                } else {
+                    console.log(`✅ [${salon.name}] QR code image saved as ${salonId}_qr.png`);
+                }
+            });
+            
+            // Destroy the temporary client after QR generation
+            setTimeout(async () => {
+                try {
+                    await tempClient.destroy();
+                    console.log(`🗑️ [${salon.name}] Temporary client destroyed after QR generation`);
+                } catch (destroyError) {
+                    console.log(`ℹ️ [${salon.name}] Temporary client cleanup completed`);
+                }
+            }, 5000);
+        });
+        
+        // Handle ready event (connection successful)
+        tempClient.on('ready', () => {
+            console.log(`✅ [${salon.name}] WhatsApp connected in QR-Only mode!`);
+            salon.isReady = true;
+            salon.clientInfo = tempClient.info;
+            salon.qrCodeData = null;
+            
+            const phoneNumber = salon.clientInfo?.wid?.user || 'Unknown';
+            updateConnectionStatus(salonId, true, phoneNumber);
+            
+            // Keep the client alive if connected
+            salon.client = tempClient;
+        });
+        
+        // Handle disconnection
+        tempClient.on('disconnected', (reason) => {
+            console.log(`❌ [${salon.name}] WhatsApp disconnected in QR-Only mode:`, reason);
+            salon.isReady = false;
+            salon.clientInfo = null;
+            updateConnectionStatus(salonId, false);
+        });
+        
+        // Initialize the temporary client
+        console.log(`🔄 [${salon.name}] Starting QR generation...`);
+        await tempClient.initialize();
+        
+    } catch (error) {
+        console.error(`❌ [${salon.name}] QR-Only mode error:`, error.message);
+        
+        // Clean up on error
+        if (tempClient) {
+            try {
+                await tempClient.destroy();
+            } catch (cleanupError) {
+                console.log(`ℹ️ [${salon.name}] Cleanup completed`);
+            }
+        }
+        
+        // Retry after delay
+        setTimeout(() => {
+            console.log(`🔄 [${salon.name}] Retrying QR generation in 2 minutes...`);
+            initializeSalonQROnly(salonId);
+        }, 120000);
+    }
 }
 
 // Graceful shutdown
