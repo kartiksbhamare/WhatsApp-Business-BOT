@@ -5,25 +5,28 @@ const fs = require('fs');
 const axios = require('axios');
 const path = require('path');
 
-// Multi-salon configuration
+// Multi-salon configuration - Modified for Railway resource constraints
 const SALONS = {
     salon_a: {
         id: 'salon_a',
         name: 'Downtown Beauty Salon',
         port: 3005,
-        clientId: 'salon-a-client'
+        clientId: 'salon-a-client',
+        priority: 1  // Initialize first
     },
     salon_b: {
         id: 'salon_b', 
         name: 'Uptown Hair Studio',
         port: 3006,
-        clientId: 'salon-b-client'
+        clientId: 'salon-b-client',
+        priority: 2  // Initialize second
     },
     salon_c: {
         id: 'salon_c',
         name: 'Luxury Spa & Salon',
         port: 3007,
-        clientId: 'salon-c-client'
+        clientId: 'salon-c-client',
+        priority: 3  // Initialize third
     }
 };
 
@@ -123,7 +126,7 @@ function initializeSalon(salonId) {
     // Load connection status
     loadConnectionStatus(salonId);
     
-    // Initialize WhatsApp client
+    // Initialize WhatsApp client with Railway-optimized configuration
     salon.client = new Client({
         authStrategy: new LocalAuth({ 
             clientId: salon.clientId,
@@ -135,100 +138,46 @@ function initializeSalon(salonId) {
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
+                '--disable-gpu',
                 '--no-first-run',
                 '--no-zygote',
                 '--single-process',
-                '--disable-gpu',
-                '--disable-web-security',
-                '--disable-features=VizDisplayCompositor',
                 '--disable-background-timer-throttling',
                 '--disable-backgrounding-occluded-windows',
                 '--disable-renderer-backgrounding',
                 '--disable-extensions',
-                '--disable-plugins',
                 '--disable-default-apps',
-                '--disable-hang-monitor',
-                '--disable-prompt-on-repost',
                 '--disable-sync',
                 '--disable-translate',
-                '--disable-ipc-flooding-protection',
                 '--memory-pressure-off',
-                '--max_old_space_size=4096',
-                '--disable-background-networking',
-                '--disable-component-update',
-                '--disable-client-side-phishing-detection',
-                '--disable-sync',
-                '--disable-default-apps',
-                '--hide-scrollbars',
-                '--disable-logging',
-                '--disable-notifications',
-                '--disable-permissions-api',
-                '--disable-popup-blocking',
-                '--disable-save-password-bubble',
-                '--disable-search-engine-choice-screen',
+                '--max_old_space_size=2048',
                 '--disable-web-security',
-                '--ignore-certificate-errors',
-                '--ignore-ssl-errors',
-                '--ignore-certificate-errors-spki-list',
-                '--user-data-dir=/tmp/chrome-user-data',
-                '--remote-debugging-port=9222',
-                '--disable-features=TranslateUI,BlinkGenPropertyTrees',
-                '--no-crash-upload',
-                '--disable-crash-reporter',
-                '--disable-breakpad',
-                '--disable-dev-shm-usage',
-                '--disable-extensions-file-access-check',
-                '--disable-extensions-http-throttling',
-                '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess',
+                '--disable-features=VizDisplayCompositor',
                 '--disable-ipc-flooding-protection',
-                '--disable-renderer-backgrounding',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-field-trial-config',
-                '--disable-back-forward-cache',
-                '--disable-features=TranslateUI',
-                '--disable-component-extensions-with-background-pages',
+                '--user-data-dir=/tmp/chrome-user-data',
+                '--disable-background-networking',
                 '--disable-default-apps',
+                '--disable-extensions',
+                '--disable-component-update',
                 '--disable-domain-reliability',
                 '--disable-background-mode',
-                '--force-color-profile=srgb',
-                '--metrics-recording-only',
-                '--disable-cpu-trace',
-                '--enable-automation',
-                '--password-store=basic',
-                '--use-mock-keychain',
-                '--disable-blink-features=AutomationControlled',
-                '--disable-features=VizDisplayCompositor,VizHitTestSurfaceLayer',
-                '--run-all-compositor-stages-before-draw',
-                '--disable-threaded-animation',
-                '--disable-threaded-scrolling',
-                '--disable-checker-imaging',
-                '--disable-new-content-rendering-timeout',
-                '--disable-image-animation-resync',
-                '--disable-partial-raster',
-                '--disable-skia-runtime-opts',
-                '--disable-shared-workers',
-                '--in-process-gpu',
-                '--disable-software-rasterizer'
+                '--disable-client-side-phishing-detection'
             ],
             defaultViewport: {
-                width: 1366,
-                height: 768,
+                width: 1280,
+                height: 720,
                 deviceScaleFactor: 1,
                 isMobile: false,
                 hasTouch: false,
                 isLandscape: true
             },
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
-            timeout: 180000,
-            ignoreDefaultArgs: ['--disable-extensions', '--enable-automation'],
+            timeout: 120000,
             handleSIGINT: false,
             handleSIGTERM: false,
             handleSIGHUP: false,
             devtools: false,
-            pipe: true,
-            dumpio: false,
-            slowMo: 100
+            pipe: true
         }
     });
     
@@ -374,9 +323,9 @@ function initializeSalon(salonId) {
     // Setup Express routes for this salon
     setupSalonRoutes(salonId);
     
-    // Initialize WhatsApp client with enhanced error handling
+    // Initialize WhatsApp client with conservative retry for Railway
     async function initializeClientWithRetry(retryCount = 0) {
-        const maxRetries = 3;
+        const maxRetries = 2; // Reduced retries to avoid resource exhaustion
         
         try {
             console.log(`🔄 [${salon.name}] Initializing WhatsApp client (attempt ${retryCount + 1}/${maxRetries + 1})...`);
@@ -391,8 +340,8 @@ function initializeSalon(salonId) {
                     // Clean up temp directories
                     require('child_process').exec('rm -rf /tmp/chrome-user-data*', () => {});
                     
-                    // Wait for cleanup
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    // Wait longer for cleanup in Railway
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                 } catch (cleanupError) {
                     console.log(`ℹ️ [${salon.name}] Cleanup completed`);
                 }
@@ -422,19 +371,19 @@ function initializeSalon(salonId) {
             }
             
             if (retryCount < maxRetries) {
-                const retryDelay = (retryCount + 1) * 20000; // 20s, 40s, 60s
+                const retryDelay = (retryCount + 1) * 60000; // 60s, 120s - longer delays for Railway
                 console.log(`🔄 [${salon.name}] Retrying in ${retryDelay/1000} seconds...`);
                 
                 setTimeout(() => {
                     initializeClientWithRetry(retryCount + 1);
                 }, retryDelay);
             } else {
-                console.error(`❌ [${salon.name}] All initialization attempts failed. Manual intervention required.`);
+                console.error(`❌ [${salon.name}] All initialization attempts failed. Will retry in 15 minutes.`);
                 // Set a longer retry after all attempts fail
                 setTimeout(() => {
-                    console.log(`🔄 [${salon.name}] Final retry attempt after 10 minutes...`);
+                    console.log(`🔄 [${salon.name}] Final retry attempt after 15 minutes...`);
                     initializeClientWithRetry(0);
-                }, 600000); // 10 minutes
+                }, 900000); // 15 minutes
             }
         }
     }
@@ -714,16 +663,26 @@ function setupSalonRoutes(salonId) {
     });
 }
 
-// Initialize all salons
-function initializeAllSalons() {
+// Initialize all salons sequentially to avoid resource conflicts
+async function initializeAllSalons() {
     console.log('🏢 Starting Multi-Salon WhatsApp Service');
-    console.log('🔧 Initializing all salons...');
+    console.log('🔧 Initializing salons sequentially to avoid resource conflicts...');
     
-    Object.keys(SALONS).forEach(salonId => {
+    // Sort salons by priority
+    const salonIds = Object.keys(SALONS).sort((a, b) => SALONS[a].priority - SALONS[b].priority);
+    
+    for (const salonId of salonIds) {
+        console.log(`\n🔄 Initializing ${SALONS[salonId].name} (Priority ${SALONS[salonId].priority})...`);
         initializeSalon(salonId);
-    });
+        
+        // Wait 30 seconds between salon initializations to reduce resource conflicts
+        if (salonId !== salonIds[salonIds.length - 1]) {
+            console.log(`⏰ Waiting 30 seconds before next salon initialization...`);
+            await new Promise(resolve => setTimeout(resolve, 30000));
+        }
+    }
     
-    console.log('✅ All salons initialized!');
+    console.log('✅ All salons initialization started!');
     console.log('\n📋 Salon Summary:');
     Object.keys(SALONS).forEach(salonId => {
         const salon = SALONS[salonId];
