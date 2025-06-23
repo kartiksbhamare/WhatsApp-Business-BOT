@@ -1,4 +1,17 @@
 {
+  "name": "smart-whatsapp-booking-bot",
+  "version": "1.0.0",
+  "description": "Multi-salon WhatsApp booking bot with real QR code generation",
+  "main": "whatsapp-service-unified.js",
+  "scripts": {
+    "start": "node whatsapp-service-unified.js",
+    "dev": "node whatsapp-service-unified.js",
+    "production": "./start.sh"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "dependencies": {
     "axios": "^1.10.0",
     "express": "^5.1.0",

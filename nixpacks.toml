@@ -1,0 +1,15 @@
+[providers]
+nodejs = "18.x"
+python = "3.11"
+
+[phases.install]
+cmds = [
+    "npm install",
+    "pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = ["echo 'Build complete'"]
+
+[start]
+cmd = "./start.sh" 

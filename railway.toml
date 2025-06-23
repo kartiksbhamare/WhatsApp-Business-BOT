@@ -1,12 +1,13 @@
 [build]
 # Force Railway to use Dockerfile instead of Nixpacks
-builder = "dockerfile"
+builder = "nixpacks"
 dockerfilePath = "Dockerfile"
 
 [deploy]
 # Railway deployment configuration
+startCommand = "./start.sh"
 healthcheckPath = "/health"
-healthcheckTimeout = 120  # Increased timeout for WhatsApp service initialization
+healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 
@@ -19,4 +20,8 @@ RAILWAY_DOCKERFILE_PATH = "Dockerfile"
 
 # Force Railway to use Dockerfile instead of Nixpacks
 [build.env]
-NIXPACKS_NO_DEFAULT_CACHE_DIRECTORIES = "1" 
+NIXPACKS_NO_DEFAULT_CACHE_DIRECTORIES = "1"
+
+[environments.production.variables]
+NODE_ENV = "production"
+PYTHON_VERSION = "3.11" 
