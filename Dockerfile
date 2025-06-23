@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     curl \
     xvfb \
+    net-tools \
+    procps \
     ca-certificates \
     fonts-liberation \
     libappindicator3-1 \
