@@ -490,7 +490,11 @@ function setupSalonRoutes(salonId) {
                         </div>
                         
                         <div class="qr-container">
-                            <div id="qr-code"></div>
+                            <img src="/qr-image" alt="WhatsApp QR Code" style="max-width: 300px; height: auto; border: 2px solid #25D366; border-radius: 10px;" onerror="this.style.display='none'; document.getElementById('qr-error').style.display='block';">
+                            <div id="qr-error" style="display: none; color: #dc3545; margin-top: 15px;">
+                                <p>🔄 Generating QR code...</p>
+                                <p>Please refresh in a few seconds.</p>
+                            </div>
                         </div>
                         
                         <div class="instructions">
@@ -513,23 +517,6 @@ function setupSalonRoutes(salonId) {
                     
                     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
                     <script>
-                        // Generate QR code
-                        const qrData = \`${salon.qrCodeData}\`;
-                        QRCode.toCanvas(document.getElementById('qr-code'), qrData, {
-                            width: 300,
-                            height: 300,
-                            margin: 2,
-                            color: {
-                                dark: '#000000',
-                                light: '#FFFFFF'
-                            }
-                        }, function (error) {
-                            if (error) {
-                                console.error('Error generating QR code:', error);
-                                document.getElementById('qr-code').innerHTML = '<p>Error generating QR code</p>';
-                            }
-                        });
-                        
                         // Auto-refresh every 30 seconds to check connection status
                         setTimeout(() => {
                             window.location.reload();

@@ -1,47 +1,9 @@
 {
-  "name": "single-salon-whatsapp-bot",
-  "version": "1.0.0",
-  "description": "Single Salon WhatsApp Booking Bot - Local QR Generation + Cloud Operation",
-  "main": "single-salon-bot.js",
-  "scripts": {
-    "start": "node single-salon-bot.js",
-    "dev": "nodemon single-salon-bot.js",
-    "setup": "bash setup-salon.sh",
-    "test": "echo \"Send 'hi' to your salon's WhatsApp number to test the bot\"",
-    "migrate": "node migrate-to-cloud.js",
-    "backup-session": "tar -czf session-backup.tar.gz .wwebjs_auth session-info.json bookings.json salon-config.json",
-    "restore-session": "tar -xzf session-backup.tar.gz"
-  },
-  "keywords": [
-    "whatsapp",
-    "bot", 
-    "booking",
-    "salon",
-    "appointment",
-    "single-salon",
-    "whatsapp-web",
-    "hybrid"
-  ],
-  "author": "WhatsApp Booking Bot",
-  "license": "MIT",
   "dependencies": {
-    "whatsapp-web.js": "^1.23.0",
-    "qrcode": "^1.5.3",
-    "qrcode-terminal": "^0.12.0",
-    "express": "^4.18.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/kartiksbhamare/WhatsApp-Business-BOT"
-  },
-  "bugs": {
-    "url": "https://github.com/kartiksbhamare/WhatsApp-Business-BOT/issues"
-  },
-  "homepage": "https://github.com/kartiksbhamare/WhatsApp-Business-BOT#readme"
-} 
+    "axios": "^1.10.0",
+    "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.30.0"
+  }
+}

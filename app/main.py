@@ -23,7 +23,8 @@ from app.services.firestore import (
     get_available_slots,
     book_slot,
     get_salon,
-    get_all_salons
+    get_salons,
+    initialize_salon_data
 )
 from app.services.whatsapp import send_whatsapp_message, check_whatsapp_service_health
 from app.config import get_settings
@@ -90,7 +91,7 @@ async def process_message_for_salon(message: str, phone: str, salon_id: str, con
     try:
         # Get salon info
         salon = get_salon(salon_id)
-        salon_name = salon.name if salon else "Our Salon"
+        salon_name = salon["name"] if salon else "Our Salon"
         
         # Handle message based on session state
         if message in ["hi", "hello", "start", "restart"] or message.startswith("hi salon_"):
@@ -137,7 +138,7 @@ async def process_message_for_salon(message: str, phone: str, salon_id: str, con
             # Get salon-specific services
             services = get_all_services(salon_id)
             salon = get_salon(salon_id)
-            salon_name = salon.name if salon else f"Salon {salon_id}"
+            salon_name = salon["name"] if salon else f"Salon {salon_id}"
             
             if not services:
                 reply_message = f"👋 Welcome to {salon_name}! ✨\n\n😔 Sorry, no services are currently available. Please contact us directly."
@@ -412,8 +413,11 @@ async def get_barber_slots(barber_name: str):
 async def initialize_database():
     """Initialize database with default data"""
     try:
-        init_default_data()
-        return {"status": "success", "message": "Database initialized successfully"}
+        success = initialize_salon_data()
+        if success:
+            return {"status": "success", "message": "Database initialized successfully with salon data"}
+        else:
+            return {"status": "error", "message": "Failed to initialize database"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -525,10 +529,10 @@ async def send_message_proxy(request: Request):
         raise HTTPException(status_code=503, detail="WhatsApp service not available")
 
 @app.get("/api/salons")
-async def get_salons():
-    """Get all available salons"""
-    salons = get_all_salons()
-    return {"salons": [{"id": s.id, "name": s.name, "phone": s.phone, "address": s.address, "active": s.active} for s in salons]}
+async def get_salons_endpoint():
+    """Get all salons"""
+    salons = get_salons()
+    return {"salons": salons}
 
 @app.get("/api/services/{salon_id}")
 async def get_services_by_salon(salon_id: str):
@@ -568,13 +572,13 @@ async def whatsapp_webhook_salon(salon_id: str, request: Request):
         
         # Get JSON data from WhatsApp Web service
         data = await request.json()
-        logger.info(f"📨 WhatsApp data received for {salon.name}: {data}")
+        logger.info(f"📨 WhatsApp data received for {salon['name']}: {data}")
         
         message = data.get("body", "").lower().strip()
         phone = data.get("from", "").replace("@c.us", "").replace("@g.us", "")
         contact_name = data.get("contactName", "Unknown")
         
-        logger.info(f"📱 Processing message: '{message}' from phone: {phone}, contact: {contact_name}, salon: {salon.name}")
+        logger.info(f"📱 Processing message: '{message}' from phone: {phone}, contact: {contact_name}, salon: {salon['name']}")
         
         # Skip group messages
         if data.get("isGroupMsg", False) or "@g.us" in data.get("from", ""):
@@ -588,7 +592,7 @@ async def whatsapp_webhook_salon(salon_id: str, request: Request):
         # Process message with salon context
         reply_message = await process_message_for_salon(message, phone, salon_id, contact_name)
         
-        logger.info(f"📤 Sending reply for {salon.name}: {reply_message}")
+        logger.info(f"📤 Sending reply for {salon['name']}: {reply_message}")
         return {"reply": reply_message}
         
     except Exception as e:

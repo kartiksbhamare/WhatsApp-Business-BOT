@@ -1,10 +1,10 @@
 {
   "salon_id": "salon_a",
   "salon_name": "Downtown Beauty Salon",
-  "is_connected": true,
-  "phone_number": "919307748525",
-  "connected_at": "2025-06-22T17:19:29.862Z",
-  "last_seen": "2025-06-22T17:19:29.862Z",
-  "connection_count": 1,
-  "qr_generated_count": 75
+  "is_connected": false,
+  "phone_number": null,
+  "connected_at": null,
+  "last_seen": "2025-06-23T17:46:30.644Z",
+  "connection_count": 3,
+  "qr_generated_count": 2
 }

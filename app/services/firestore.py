@@ -1,12 +1,13 @@
 from firebase_admin import credentials, firestore, initialize_app
 from datetime import datetime, timedelta
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 import os
 import json
 from app.config import get_settings
 from app.models.services import Service, Barber, Salon, Booking
 import logging
 from google.cloud import firestore
+from google.auth import default
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -42,80 +43,69 @@ def initialize_firebase():
         logger.error(f"Error initializing Firebase: {str(e)}")
         return None
 
-# Initialize Firestore client safely
+# Initialize the database client
 def get_firestore_client():
     """Get Firestore client, initializing if needed"""
     try:
-        cred_dict = get_firebase_credentials()
-        if not cred_dict:
-            logger.warning("No Firebase credentials found. Database operations will be disabled.")
+        # Use project ID from environment
+        project_id = settings.FIREBASE_PROJECT_ID
+        if not project_id:
+            logger.error("No Firebase project ID found in environment variables")
             return None
-        return firestore.Client.from_service_account_info(cred_dict)
+        
+        logger.info(f"Initializing Firestore with project ID: {project_id}")
+        
+        # Try to get default credentials (works if gcloud is configured)
+        try:
+            credentials, _ = default()
+            return firestore.Client(project=project_id, credentials=credentials)
+        except Exception as cred_error:
+            logger.warning(f"Default credentials failed: {cred_error}")
+            # Try without explicit credentials (uses application default)
+            return firestore.Client(project=project_id)
+            
     except Exception as e:
         logger.error(f"Error initializing Firestore client: {str(e)}")
+        logger.info("💡 Make sure Firebase project ID is set in environment variables")
         return None
 
-# Initialize the database client
 db = get_firestore_client()
 
-# In-memory mock database for testing
-MOCK_DATABASE = {
-    "salons": {
-        "salon_a": {
-            "id": "salon_a",
-            "name": "Downtown Beauty Salon",
-            "phone": "+1234567890",
-            "address": "123 Main Street, Downtown",
-            "whatsapp_service_url": "http://localhost:3000",
-            "working_hours": {"Monday": "09:00-17:00", "Tuesday": "09:00-17:00", "Wednesday": "09:00-17:00", "Thursday": "09:00-17:00", "Friday": "09:00-17:00", "Saturday": "10:00-16:00"},
-            "timezone": "UTC",
-            "active": True
-        },
-        "salon_b": {
-            "id": "salon_b",
-            "name": "Uptown Hair Studio",
-            "phone": "+0987654321",
-            "address": "456 Oak Avenue, Uptown",
-            "whatsapp_service_url": "http://localhost:3000",
-            "working_hours": {"Monday": "10:00-18:00", "Tuesday": "10:00-18:00", "Wednesday": "10:00-18:00", "Thursday": "10:00-18:00", "Friday": "10:00-18:00", "Saturday": "09:00-17:00"},
-            "timezone": "UTC",
-            "active": True
-        },
-        "salon_c": {
-            "id": "salon_c",
-            "name": "Luxury Spa & Salon",
-            "phone": "+1122334455",
-            "address": "789 Elm Street, Westside",
-            "whatsapp_service_url": "http://localhost:3000",
-            "working_hours": {"Tuesday": "09:00-17:00", "Wednesday": "09:00-17:00", "Thursday": "09:00-17:00", "Friday": "09:00-17:00", "Saturday": "10:00-18:00", "Sunday": "10:00-16:00"},
-            "timezone": "UTC",
-            "active": True
-        }
-    },
-    "services": {
-        "salon_a_1": {"id": "salon_a_1", "salon_id": "salon_a", "name": "Hair Cut", "duration": 30, "price": 25.00, "description": "Professional hair cutting and styling"},
-        "salon_a_2": {"id": "salon_a_2", "salon_id": "salon_a", "name": "Hair Color", "duration": 90, "price": 75.00, "description": "Hair coloring and highlights"},
-        "salon_b_1": {"id": "salon_b_1", "salon_id": "salon_b", "name": "Hair Cut", "duration": 30, "price": 25.00, "description": "Professional hair cutting and styling"},
-        "salon_b_2": {"id": "salon_b_2", "salon_id": "salon_b", "name": "Hair Color", "duration": 90, "price": 75.00, "description": "Hair coloring and highlights"},
-        "salon_c_1": {"id": "salon_c_1", "salon_id": "salon_c", "name": "Hair Cut", "duration": 30, "price": 25.00, "description": "Professional hair cutting and styling"},
-        "salon_c_2": {"id": "salon_c_2", "salon_id": "salon_c", "name": "Hair Color", "duration": 90, "price": 75.00, "description": "Hair coloring and highlights"}
-    },
-    "barbers": {
-        "salon_a_maya": {"name": "Maya", "salon_id": "salon_a", "services": ["salon_a_1", "salon_a_2"], "email": "maya@downtownbeauty.com", "working_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "specialties": ["Hair Coloring"], "experience_years": 6},
-        "salon_b_aisha": {"name": "Aisha", "salon_id": "salon_b", "services": ["salon_b_1", "salon_b_2"], "email": "aisha@uptownhair.com", "working_days": ["Monday", "Wednesday", "Thursday", "Friday", "Saturday"], "specialties": ["Hair Styling"], "experience_years": 8},
-        "salon_c_priya": {"name": "Priya", "salon_id": "salon_c", "services": ["salon_c_1", "salon_c_2"], "email": "priya@luxuryspa.com", "working_days": ["Tuesday", "Friday", "Saturday", "Sunday"], "specialties": ["Spa Treatments"], "experience_years": 7}
-    }
+# Global fallback storage
+LOCAL_DB_FILE = "local_firebase_data.json"
+local_db = {
+    "salons": {},
+    "services": {},
+    "barbers": {},
+    "bookings": {}
 }
 
-USE_MOCK_DB = False
+def load_local_db():
+    """Load local database from file"""
+    global local_db
+    try:
+        if os.path.exists(LOCAL_DB_FILE):
+            with open(LOCAL_DB_FILE, 'r') as f:
+                local_db = json.load(f)
+                logger.info("📂 Loaded local database from file")
+    except Exception as e:
+        logger.error(f"Error loading local database: {e}")
 
-def use_mock_database():
-    """Check if we should use mock database"""
-    global USE_MOCK_DB
-    if not db:
-        USE_MOCK_DB = True
-        logger.warning("Using mock database for testing")
-    return USE_MOCK_DB
+def save_local_db():
+    """Save local database to file"""
+    try:
+        with open(LOCAL_DB_FILE, 'w') as f:
+            json.dump(local_db, f, indent=2)
+            logger.info("💾 Saved local database to file")
+    except Exception as e:
+        logger.error(f"Error saving local database: {e}")
+
+# Load local database on import
+load_local_db()
+
+def use_local_storage():
+    """Check if we should use local storage instead of Firebase"""
+    return db is None
 
 def get_available_slots(barber_name: str, date: datetime = None, salon_id: str = None) -> List[str]:
     """
@@ -129,10 +119,6 @@ def get_available_slots(barber_name: str, date: datetime = None, salon_id: str =
     Returns:
         List of available time slots
     """
-    if use_mock_database():
-        # Return mock available slots for testing
-        return ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM", "03:00 PM", "04:00 PM"]
-    
     if not db:
         logger.error("Database not available. Cannot get available slots.")
         return []
@@ -194,14 +180,6 @@ def book_slot(booking_data: Dict, salon_id: str = None) -> Dict[str, str]:
     Returns:
         Dict with status and message
     """
-    if use_mock_database():
-        # Mock booking success for testing
-        return {
-            'status': 'success',
-            'message': 'Booking confirmed successfully (mock)',
-            'booking_id': f"mock_booking_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        }
-    
     if not db:
         logger.error("Database not available. Cannot book slot.")
         return {
@@ -268,52 +246,54 @@ def check_barbers_initialized():
         logger.error(f"Error checking barbers: {str(e)}")
         return False
 
-def get_salon(salon_id: str) -> Optional[Salon]:
-    """Get a specific salon by ID"""
-    if use_mock_database():
-        salon_data = MOCK_DATABASE["salons"].get(salon_id)
+def get_salon(salon_id: str) -> Dict[str, Any]:
+    """Get salon by ID"""
+    if use_local_storage():
+        # Use local storage
+        salon_data = local_db.get("salons", {}).get(salon_id)
         if salon_data:
-            return Salon(**salon_data)
-        return None
-    
-    if not db:
-        logger.error("Database not available. Cannot get salon.")
-        return None
-    
-    try:
-        doc = db.collection('salons').document(salon_id).get()
-        if doc.exists:
-            salon_data = doc.to_dict()
-            salon_data['id'] = doc.id
-            return Salon(**salon_data)
-        return None
-    except Exception as e:
-        logger.error(f"Error getting salon: {str(e)}")
-        return None
+            return salon_data
+        else:
+            logger.warning(f"Salon {salon_id} not found in local storage")
+            return None
+    else:
+        # Use Firebase (original code)
+        try:
+            salon_ref = db.collection('salons').document(salon_id)
+            salon_doc = salon_ref.get()
+            
+            if salon_doc.exists:
+                return salon_doc.to_dict()
+            else:
+                logger.warning(f"Salon {salon_id} not found in Firebase")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting salon {salon_id} from Firebase: {str(e)}")
+            return None
 
-def get_all_salons() -> List[Salon]:
-    """Get all salons from Firestore"""
-    if use_mock_database():
-        salons = []
-        for salon_data in MOCK_DATABASE["salons"].values():
-            if salon_data.get("active", True):
-                salons.append(Salon(**salon_data))
-        return salons
-    
-    if not db:
-        logger.error("Database not available. Cannot get salons.")
-        return []
-    
-    try:
-        salons = []
-        for doc in db.collection('salons').where('active', '==', True).stream():
-            salon_data = doc.to_dict()
-            salon_data['id'] = doc.id
-            salons.append(Salon(**salon_data))
-        return salons
-    except Exception as e:
-        logger.error(f"Error getting salons: {str(e)}")
-        return []
+def get_salons() -> List[Dict[str, Any]]:
+    """Get all salons"""
+    if use_local_storage():
+        # Use local storage
+        salon_data = local_db.get("salons", {})
+        return list(salon_data.values())
+    else:
+        # Use Firebase (original code)
+        try:
+            salons_ref = db.collection('salons')
+            salons = salons_ref.stream()
+            
+            salon_list = []
+            for salon in salons:
+                salon_data = salon.to_dict()
+                salon_list.append(salon_data)
+            
+            return salon_list
+            
+        except Exception as e:
+            logger.error(f"Error getting salons from Firebase: {str(e)}")
+            return []
 
 def init_default_data():
     """Initialize default salons, services and barbers for multi-salon setup"""
@@ -457,47 +437,63 @@ def init_default_data():
         logger.error(f"Error initializing multi-salon data: {str(e)}")
 
 def get_all_services(salon_id: str = None):
-    """Get all services from Firestore, optionally filtered by salon"""
-    if use_mock_database():
-        services = []
-        for service_data in MOCK_DATABASE["services"].values():
-            if not salon_id or service_data.get("salon_id") == salon_id:
-                services.append(Service(**service_data))
-        return services
-    
-    if not db:
-        logger.error("Database not available. Cannot get services.")
+    """Get all services from Firestore or local storage, optionally filtered by salon"""
+    if use_local_storage():
+        # Use local storage
+        salon_data = local_db.get("salons", {})
+        if salon_id and salon_id in salon_data:
+            services = salon_data[salon_id].get("services", [])
+            # Convert to simple objects with required attributes
+            service_objects = []
+            for i, service in enumerate(services):
+                service_obj = type('Service', (), {
+                    'id': f"{salon_id}_{i+1}",
+                    'name': service['name'],
+                    'duration': service['duration'],
+                    'price': service['price'],
+                    'description': f"{service['name']} service"
+                })()
+                service_objects.append(service_obj)
+            return service_objects
+        elif not salon_id:
+            # Return all services from all salons
+            all_services = []
+            for s_id, salon in salon_data.items():
+                services = salon.get("services", [])
+                for i, service in enumerate(services):
+                    service_obj = type('Service', (), {
+                        'id': f"{s_id}_{i+1}",
+                        'name': service['name'],
+                        'duration': service['duration'],
+                        'price': service['price'],
+                        'description': f"{service['name']} service"
+                    })()
+                    all_services.append(service_obj)
+            return all_services
         return []
-    
-    try:
-        query = db.collection('services')
-        if salon_id:
-            query = query.where('salon_id', '==', salon_id)
+    else:
+        # Use Firebase (original code)
+        if not db:
+            logger.error("Database not available. Cannot get services.")
+            return []
         
-        services = []
-        for doc in query.stream():
-            service_data = doc.to_dict()
-            service_data['id'] = doc.id
-            services.append(Service(**service_data))
-        return services
-    except Exception as e:
-        logger.error(f"Error getting services: {str(e)}")
-        return []
+        try:
+            query = db.collection('services')
+            if salon_id:
+                query = query.where('salon_id', '==', salon_id)
+            
+            services = []
+            for doc in query.stream():
+                service_data = doc.to_dict()
+                service_data['id'] = doc.id
+                services.append(Service(**service_data))
+            return services
+        except Exception as e:
+            logger.error(f"Error getting services: {str(e)}")
+            return []
 
 def get_service(service_id: str, salon_id: str = None):
     """Get a specific service by ID, optionally filtered by salon"""
-    if use_mock_database():
-        # If salon_id is provided, construct the full service ID
-        if salon_id and not service_id.startswith(salon_id):
-            full_service_id = f"{salon_id}_{service_id}"
-        else:
-            full_service_id = service_id
-            
-        service_data = MOCK_DATABASE["services"].get(full_service_id)
-        if service_data:
-            return Service(**service_data)
-        return None
-    
     if not db:
         logger.error("Database not available. Cannot get service.")
         return None
@@ -521,13 +517,6 @@ def get_service(service_id: str, salon_id: str = None):
 
 def get_all_barbers(salon_id: str = None):
     """Get all barbers from Firestore, optionally filtered by salon"""
-    if use_mock_database():
-        barbers = []
-        for barber_data in MOCK_DATABASE["barbers"].values():
-            if not salon_id or barber_data.get("salon_id") == salon_id:
-                barbers.append(Barber(**barber_data))
-        return barbers
-    
     if not db:
         logger.error("Database not available. Cannot get barbers.")
         return []
@@ -568,20 +557,6 @@ def get_barber(email: str, salon_id: str = None):
 
 def get_barbers_for_service(service_id: str, salon_id: str = None):
     """Get all barbers that provide a specific service, optionally filtered by salon"""
-    if use_mock_database():
-        barbers = []
-        # If salon_id is provided, construct the full service ID
-        if salon_id and not service_id.startswith(salon_id):
-            full_service_id = f"{salon_id}_{service_id}"
-        else:
-            full_service_id = service_id
-            
-        for barber_data in MOCK_DATABASE["barbers"].values():
-            if full_service_id in barber_data.get("services", []):
-                if not salon_id or barber_data.get("salon_id") == salon_id:
-                    barbers.append(Barber(**barber_data))
-        return barbers
-    
     if not db:
         logger.error("Database not available. Cannot get barbers for service.")
         return []
@@ -610,4 +585,192 @@ def get_barbers_for_service(service_id: str, salon_id: str = None):
         return barbers
     except Exception as e:
         logger.error(f"Error getting barbers for service: {str(e)}")
-        return [] 
+        return []
+
+def initialize_salon_data():
+    """Initialize salon data in Firestore or local storage"""
+    if not use_local_storage() and db:
+        # Use Firebase
+        try:
+            salon_data = [
+                {
+                    "id": "salon_a",
+                    "name": "Downtown Beauty Salon", 
+                    "address": "123 Downtown St, City Center",
+                    "phone": "919307748525",
+                    "email": "downtown@beauty.com",
+                    "services": [
+                        {"name": "Haircut", "duration": 30, "price": 25.0},
+                        {"name": "Hair Wash", "duration": 15, "price": 10.0},
+                        {"name": "Styling", "duration": 45, "price": 35.0}
+                    ],
+                    "barbers": [
+                        {"name": "Alex", "specialties": ["Haircut", "Styling"]},
+                        {"name": "Maria", "specialties": ["Hair Wash", "Styling"]}
+                    ],
+                    "working_hours": {
+                        "monday": "09:00-18:00",
+                        "tuesday": "09:00-18:00", 
+                        "wednesday": "09:00-18:00",
+                        "thursday": "09:00-18:00",
+                        "friday": "09:00-18:00",
+                        "saturday": "10:00-16:00",
+                        "sunday": "Closed"
+                    }
+                },
+                {
+                    "id": "salon_b", 
+                    "name": "Uptown Hair Studio",
+                    "address": "456 Uptown Ave, Fashion District",
+                    "phone": "919307748525",
+                    "email": "uptown@hairstudio.com",
+                    "services": [
+                        {"name": "Premium Cut", "duration": 60, "price": 50.0},
+                        {"name": "Color Treatment", "duration": 120, "price": 80.0},
+                        {"name": "Deep Conditioning", "duration": 45, "price": 40.0}
+                    ],
+                    "barbers": [
+                        {"name": "Sophie", "specialties": ["Premium Cut", "Color Treatment"]},
+                        {"name": "James", "specialties": ["Premium Cut", "Deep Conditioning"]}
+                    ],
+                    "working_hours": {
+                        "monday": "10:00-19:00",
+                        "tuesday": "10:00-19:00",
+                        "wednesday": "10:00-19:00", 
+                        "thursday": "10:00-19:00",
+                        "friday": "10:00-19:00",
+                        "saturday": "09:00-17:00",
+                        "sunday": "11:00-16:00"
+                    }
+                },
+                {
+                    "id": "salon_c",
+                    "name": "Luxury Spa & Salon",
+                    "address": "789 Luxury Blvd, Premium District", 
+                    "phone": "919307748525",
+                    "email": "luxury@spa.com",
+                    "services": [
+                        {"name": "Luxury Haircut", "duration": 90, "price": 100.0},
+                        {"name": "Spa Treatment", "duration": 180, "price": 200.0},
+                        {"name": "Facial & Hair", "duration": 120, "price": 150.0}
+                    ],
+                    "barbers": [
+                        {"name": "Isabella", "specialties": ["Luxury Haircut", "Spa Treatment"]},
+                        {"name": "Michael", "specialties": ["Luxury Haircut", "Facial & Hair"]}
+                    ],
+                    "working_hours": {
+                        "monday": "08:00-20:00",
+                        "tuesday": "08:00-20:00",
+                        "wednesday": "08:00-20:00",
+                        "thursday": "08:00-20:00", 
+                        "friday": "08:00-20:00",
+                        "saturday": "09:00-18:00",
+                        "sunday": "10:00-17:00"
+                    }
+                }
+            ]
+            
+            # Initialize each salon in Firebase
+            for salon in salon_data:
+                salon_ref = db.collection('salons').document(salon['id'])
+                salon_ref.set(salon)
+                logger.info(f"✅ Initialized salon in Firebase: {salon['name']} ({salon['id']})")
+            
+            logger.info("🎉 All salon data initialized successfully in Firebase!")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error initializing salon data in Firebase: {str(e)}")
+            return False
+    else:
+        # Use local storage fallback
+        try:
+            global local_db
+            salon_data = {
+                "salon_a": {
+                    "id": "salon_a",
+                    "name": "Downtown Beauty Salon", 
+                    "address": "123 Downtown St, City Center",
+                    "phone": "919307748525",
+                    "email": "downtown@beauty.com",
+                    "services": [
+                        {"name": "Haircut", "duration": 30, "price": 25.0},
+                        {"name": "Hair Wash", "duration": 15, "price": 10.0},
+                        {"name": "Styling", "duration": 45, "price": 35.0}
+                    ],
+                    "barbers": [
+                        {"name": "Alex", "specialties": ["Haircut", "Styling"]},
+                        {"name": "Maria", "specialties": ["Hair Wash", "Styling"]}
+                    ],
+                    "working_hours": {
+                        "monday": "09:00-18:00",
+                        "tuesday": "09:00-18:00", 
+                        "wednesday": "09:00-18:00",
+                        "thursday": "09:00-18:00",
+                        "friday": "09:00-18:00",
+                        "saturday": "10:00-16:00",
+                        "sunday": "Closed"
+                    }
+                },
+                "salon_b": {
+                    "id": "salon_b", 
+                    "name": "Uptown Hair Studio",
+                    "address": "456 Uptown Ave, Fashion District",
+                    "phone": "919307748525",
+                    "email": "uptown@hairstudio.com",
+                    "services": [
+                        {"name": "Premium Cut", "duration": 60, "price": 50.0},
+                        {"name": "Color Treatment", "duration": 120, "price": 80.0},
+                        {"name": "Deep Conditioning", "duration": 45, "price": 40.0}
+                    ],
+                    "barbers": [
+                        {"name": "Sophie", "specialties": ["Premium Cut", "Color Treatment"]},
+                        {"name": "James", "specialties": ["Premium Cut", "Deep Conditioning"]}
+                    ],
+                    "working_hours": {
+                        "monday": "10:00-19:00",
+                        "tuesday": "10:00-19:00",
+                        "wednesday": "10:00-19:00", 
+                        "thursday": "10:00-19:00",
+                        "friday": "10:00-19:00",
+                        "saturday": "09:00-17:00",
+                        "sunday": "11:00-16:00"
+                    }
+                },
+                "salon_c": {
+                    "id": "salon_c",
+                    "name": "Luxury Spa & Salon",
+                    "address": "789 Luxury Blvd, Premium District", 
+                    "phone": "919307748525",
+                    "email": "luxury@spa.com",
+                    "services": [
+                        {"name": "Luxury Haircut", "duration": 90, "price": 100.0},
+                        {"name": "Spa Treatment", "duration": 180, "price": 200.0},
+                        {"name": "Facial & Hair", "duration": 120, "price": 150.0}
+                    ],
+                    "barbers": [
+                        {"name": "Isabella", "specialties": ["Luxury Haircut", "Spa Treatment"]},
+                        {"name": "Michael", "specialties": ["Luxury Haircut", "Facial & Hair"]}
+                    ],
+                    "working_hours": {
+                        "monday": "08:00-20:00",
+                        "tuesday": "08:00-20:00",
+                        "wednesday": "08:00-20:00",
+                        "thursday": "08:00-20:00", 
+                        "friday": "08:00-20:00",
+                        "saturday": "09:00-18:00",
+                        "sunday": "10:00-17:00"
+                    }
+                }
+            }
+            
+            local_db["salons"] = salon_data
+            save_local_db()
+            
+            logger.info("🎉 All salon data initialized successfully in local storage!")
+            logger.info("📝 Note: Using local storage as Firebase backup. Data will migrate when Firebase is connected.")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error initializing salon data in local storage: {str(e)}")
+            return False 
