@@ -125,7 +125,10 @@ function initializeSalon(salonId) {
     
     // Initialize WhatsApp client
     salon.client = new Client({
-        authStrategy: new LocalAuth({ clientId: salon.clientId }),
+        authStrategy: new LocalAuth({ 
+            clientId: salon.clientId,
+            dataPath: `.wwebjs_auth/session-${salon.clientId}`
+        }),
         puppeteer: {
             headless: true,
             args: [
@@ -168,8 +171,8 @@ function initializeSalon(salonId) {
                 '--ignore-certificate-errors',
                 '--ignore-ssl-errors',
                 '--ignore-certificate-errors-spki-list',
-                '--user-data-dir=/tmp/chrome-user-data',
-                '--remote-debugging-port=9222',
+                `--user-data-dir=/tmp/chrome-user-data-${salon.clientId}`,
+                `--remote-debugging-port=${9222 + parseInt(salon.port) - 3005}`,
                 '--disable-features=TranslateUI,BlinkGenPropertyTrees',
                 '--no-crash-upload',
                 '--disable-crash-reporter',
@@ -193,7 +196,11 @@ function initializeSalon(salonId) {
                 '--disable-cpu-trace',
                 '--enable-automation',
                 '--password-store=basic',
-                '--use-mock-keychain'
+                '--use-mock-keychain',
+                '--disable-session-crashed-bubble',
+                '--disable-infobars',
+                '--no-default-browser-check',
+                '--disable-default-browser-check'
             ],
             defaultViewport: {
                 width: 1366,
@@ -201,10 +208,11 @@ function initializeSalon(salonId) {
             },
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
             timeout: 120000,
-            ignoreDefaultArgs: ['--disable-extensions'],
+            ignoreDefaultArgs: ['--disable-extensions', '--enable-automation'],
             handleSIGINT: false,
             handleSIGTERM: false,
-            handleSIGHUP: false
+            handleSIGHUP: false,
+            devtools: false
         }
     });
     

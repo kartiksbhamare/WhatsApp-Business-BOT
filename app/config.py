@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
     
     # WhatsApp Web Service Settings - Updated for Railway deployment
-    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Mock service runs on port 3000 (Railway deployment fix)
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3005"  # Main WhatsApp service runs on port 3005 (salon_a)
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
     # Multi-Salon WhatsApp Service URLs
@@ -50,13 +50,8 @@ class Settings(BaseSettings):
     
     def _handle_backward_compatibility(self):
         """Handle backward compatibility for renamed environment variables"""
-        # For Railway deployment, always use port 3000 for mock service
-        # Override any old environment variables that might point to wrong ports
-        if "railway" in os.environ.get("RAILWAY_ENVIRONMENT_NAME", "").lower() or os.environ.get("PORT"):
-            # Force correct port for Railway deployment
-            self.WHATSAPP_SERVICE_URL = "http://localhost:3000"
-            logger.info("🚂 Railway deployment detected - forcing WhatsApp service to port 3000")
-        elif self.VENOM_SERVICE_URL and self.WHATSAPP_SERVICE_URL == "http://localhost:3000":
+        # Handle legacy VENOM_SERVICE_URL for local development only
+        if self.VENOM_SERVICE_URL and not os.environ.get("PORT"):
             # Only use VENOM_SERVICE_URL for local development
             self.WHATSAPP_SERVICE_URL = self.VENOM_SERVICE_URL
             logger.info("Using VENOM_SERVICE_URL for backward compatibility. Please update to WHATSAPP_SERVICE_URL")
@@ -83,15 +78,13 @@ class Settings(BaseSettings):
     
     @property
     def salon_whatsapp_mapping(self) -> Dict[str, str]:
-        """Get salon ID to WhatsApp service URL mapping - all use mock service on port 3000 for Railway deployment"""
-        # For Railway deployment, always use the mock service on port 3000
-        base_url = "http://localhost:3000"  # Force port 3000 for all salons
+        """Get salon ID to WhatsApp service URL mapping - using actual unified service ports"""
         return {
-            "salon_a": base_url,
-            "salon_b": base_url, 
-            "salon_c": base_url,
+            "salon_a": "http://localhost:3005",  # Downtown Beauty Salon
+            "salon_b": "http://localhost:3006",  # Uptown Hair Studio
+            "salon_c": "http://localhost:3007",  # Luxury Spa & Salon
             # Add default salon for backward compatibility
-            "default": base_url
+            "default": "http://localhost:3005"
         }
     
     def get_salon_from_phone(self, to_phone: str) -> str:

@@ -93,7 +93,7 @@ def check_whatsapp_service_health() -> bool:
         response = requests.get(f"{settings.WHATSAPP_SERVICE_URL}/health", timeout=5)
         if response.status_code == 200:
             data = response.json()
-            return data.get('status') == 'healthy' and data.get('client_ready', False)
+            return data.get('status') == 'ready'
         return False
     except Exception as e:
         logger.error(f"Error checking WhatsApp Web service health: {str(e)}")
