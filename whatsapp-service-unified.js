@@ -5,49 +5,53 @@ const fs = require('fs');
 const axios = require('axios');
 const path = require('path');
 
-// Multi-salon configuration - Modified for Railway resource constraints
+// Multi-salon configuration - Railway Single-Salon Mode
 const SALONS = {
     salon_a: {
         id: 'salon_a',
         name: 'Downtown Beauty Salon',
         port: 3005,
         clientId: 'salon-a-client',
-        priority: 1  // Initialize first
+        priority: 1
     },
     salon_b: {
         id: 'salon_b', 
         name: 'Uptown Hair Studio',
         port: 3006,
         clientId: 'salon-b-client',
-        priority: 2  // Initialize second
+        priority: 2
     },
     salon_c: {
         id: 'salon_c',
         name: 'Luxury Spa & Salon',
         port: 3007,
         clientId: 'salon-c-client',
-        priority: 3  // Initialize third
+        priority: 3
     }
 };
 
+// Railway Single-Salon Mode - Only initialize one salon to conserve resources
+const ACTIVE_SALON = process.env.ACTIVE_SALON || 'salon_a'; // Default to salon_a
+console.log(`🎯 Railway Single-Salon Mode: Initializing only ${ACTIVE_SALON}`);
+
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
 
-// Global storage for salon data
+// Global storage for salon data - Only for active salon
 const salonData = {};
 
-// Initialize salon data
-Object.keys(SALONS).forEach(salonId => {
-    const salon = SALONS[salonId];
-    salonData[salonId] = {
-        ...salon,
+// Initialize salon data only for active salon
+const activeSalonConfig = SALONS[ACTIVE_SALON];
+if (activeSalonConfig) {
+    salonData[ACTIVE_SALON] = {
+        ...activeSalonConfig,
         app: express(),
         client: null,
         qrCodeData: null,
         isReady: false,
         clientInfo: null,
         connectionStatus: {
-            salon_id: salonId,
-            salon_name: salon.name,
+            salon_id: ACTIVE_SALON,
+            salon_name: activeSalonConfig.name,
             is_connected: false,
             phone_number: null,
             connected_at: null,
@@ -56,7 +60,11 @@ Object.keys(SALONS).forEach(salonId => {
             qr_generated_count: 0
         }
     };
-});
+    console.log(`📋 Initialized data for active salon: ${activeSalonConfig.name}`);
+} else {
+    console.error(`❌ Invalid ACTIVE_SALON: ${ACTIVE_SALON}`);
+    process.exit(1);
+}
 
 // Connection status management functions
 function getConnectionStatusFile(salonId) {
@@ -663,31 +671,27 @@ function setupSalonRoutes(salonId) {
     });
 }
 
-// Initialize all salons sequentially to avoid resource conflicts
-async function initializeAllSalons() {
-    console.log('🏢 Starting Multi-Salon WhatsApp Service');
-    console.log('🔧 Initializing salons sequentially to avoid resource conflicts...');
+// Initialize only the active salon to conserve Railway resources
+async function initializeActiveSalon() {
+    console.log('🏢 Starting Single-Salon WhatsApp Service for Railway');
+    console.log(`🎯 Active Salon: ${ACTIVE_SALON}`);
     
-    // Sort salons by priority
-    const salonIds = Object.keys(SALONS).sort((a, b) => SALONS[a].priority - SALONS[b].priority);
-    
-    for (const salonId of salonIds) {
-        console.log(`\n🔄 Initializing ${SALONS[salonId].name} (Priority ${SALONS[salonId].priority})...`);
-        initializeSalon(salonId);
-        
-        // Wait 30 seconds between salon initializations to reduce resource conflicts
-        if (salonId !== salonIds[salonIds.length - 1]) {
-            console.log(`⏰ Waiting 30 seconds before next salon initialization...`);
-            await new Promise(resolve => setTimeout(resolve, 30000));
-        }
+    // Validate active salon exists
+    if (!SALONS[ACTIVE_SALON]) {
+        console.error(`❌ Invalid ACTIVE_SALON: ${ACTIVE_SALON}. Valid options: ${Object.keys(SALONS).join(', ')}`);
+        process.exit(1);
     }
     
-    console.log('✅ All salons initialization started!');
-    console.log('\n📋 Salon Summary:');
-    Object.keys(SALONS).forEach(salonId => {
-        const salon = SALONS[salonId];
-        console.log(`  🏢 ${salon.name} (${salonId}): http://localhost:${salon.port}/qr`);
-    });
+    const salon = SALONS[ACTIVE_SALON];
+    console.log(`\n🔄 Initializing ${salon.name}...`);
+    
+    // Initialize only the active salon
+    initializeSalon(ACTIVE_SALON);
+    
+    console.log('✅ Active salon initialization started!');
+    console.log(`\n📋 Active Salon:`);
+    console.log(`  🏢 ${salon.name} (${ACTIVE_SALON}): http://localhost:${salon.port}/qr`);
+    console.log(`\n💡 To switch salons, set ACTIVE_SALON environment variable to: ${Object.keys(SALONS).join(', ')}`);
 }
 
 // Graceful shutdown
@@ -711,5 +715,5 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-// Start the multi-salon service
-initializeAllSalons(); 
+// Start the single-salon service
+initializeActiveSalon(); 

@@ -24,4 +24,5 @@ NIXPACKS_NO_DEFAULT_CACHE_DIRECTORIES = "1"
 
 [environments.production.variables]
 NODE_ENV = "production"
+ACTIVE_SALON = "salon_a"
 PYTHON_VERSION = "3.11" 
