@@ -552,75 +552,141 @@ function setupSalonRoutes(salonId) {
         
         // Show QR code if not connected
         if (salon.qrCodeData) {
-            res.send(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>${salon.name} - WhatsApp QR Code</title>
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <style>
-                        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f0f8ff; }
-                        .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; }
-                        .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-                        .qr-container { margin: 20px 0; }
-                        .instructions { background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; text-align: left; }
-                        .auto-detect { background: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0; }
-                        .refresh-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-                        .refresh-btn:hover { background: #0056b3; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="salon-info">
-                            <h2>🏢 ${salon.name}</h2>
-                            <p>📍 Salon ID: ${salonId}</p>
-                            <p>📱 Port: ${salon.port}</p>
-                        </div>
-                        
-                        <h1>📱 WhatsApp QR Code</h1>
-                        
-                        <div class="auto-detect">
-                            <h3>🎯 Automatic Salon Detection Active!</h3>
-                            <p>✨ Once you scan this QR code and connect WhatsApp, customers can simply send <strong>"hi"</strong> and will automatically get ${salon.name}'s services and barbers!</p>
-                            <p>🔄 No need for special commands - the system will remember this is ${salon.name}'s WhatsApp number.</p>
-                        </div>
-                        
-                        <div class="qr-container">
-                            <img src="/qr-image" alt="WhatsApp QR Code" style="max-width: 300px; height: auto; border: 2px solid #25D366; border-radius: 10px;" onerror="this.style.display='none'; document.getElementById('qr-error').style.display='block';">
-                            <div id="qr-error" style="display: none; color: #dc3545; margin-top: 15px;">
-                                <p>🔄 Generating QR code...</p>
-                                <p>Please refresh in a few seconds.</p>
+            // Check if this is a static fallback QR
+            const isStaticFallback = salon.qrCodeData.includes('Since Chrome cannot run in Railway');
+            
+            if (isStaticFallback) {
+                // Show Railway-specific setup instructions
+                res.send(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>${salon.name} - Railway Setup Required</title>
+                        <meta name="viewport" content="width=device-width, initial-scale=1">
+                        <style>
+                            body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #fff3cd; }
+                            .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; }
+                            .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                            .warning { background: #fff3cd; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107; }
+                            .solutions { background: #d4edda; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: left; }
+                            .solution-item { margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="salon-info">
+                                <h2>🏢 ${salon.name}</h2>
+                                <p>📍 Salon ID: ${salonId}</p>
+                                <p>🚀 Railway Deployment</p>
                             </div>
+                            
+                            <div class="warning">
+                                <h2>⚠️ Chrome Cannot Run in Railway</h2>
+                                <p>Railway's container environment doesn't support Chrome/Puppeteer for WhatsApp Web.js. This is a known limitation.</p>
+                            </div>
+                            
+                            <div class="solutions">
+                                <h3>🔧 Solutions for WhatsApp Integration:</h3>
+                                
+                                <div class="solution-item">
+                                    <h4>🖥️ Option 1: Local Development</h4>
+                                    <p>Run this project locally on your computer to get real WhatsApp QR codes that work perfectly.</p>
+                                    <code>npm start</code>
+                                </div>
+                                
+                                <div class="solution-item">
+                                    <h4>📱 Option 2: WhatsApp Business API</h4>
+                                    <p>Use WhatsApp's official Business API instead of WhatsApp Web.js for production deployments.</p>
+                                </div>
+                                
+                                <div class="solution-item">
+                                    <h4>☁️ Option 3: Different Platform</h4>
+                                    <p>Deploy to platforms that support Chrome like Heroku, DigitalOcean, or VPS servers.</p>
+                                </div>
+                                
+                                <div class="solution-item">
+                                    <h4>🤝 Option 4: Contact Support</h4>
+                                    <p>Get help setting up a production-ready WhatsApp integration for your salon.</p>
+                                </div>
+                            </div>
+                            
+                            <p><strong>📋 Current Status:</strong> Backend API is running and ready. Only WhatsApp connection needs alternative setup.</p>
+                        </div>
+                    </body>
+                    </html>
+                `);
+            } else {
+                // Show normal QR code page
+                res.send(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>${salon.name} - WhatsApp QR Code</title>
+                        <meta name="viewport" content="width=device-width, initial-scale=1">
+                        <style>
+                            body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f0f8ff; }
+                            .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; }
+                            .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                            .qr-container { margin: 20px 0; }
+                            .instructions { background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; text-align: left; }
+                            .auto-detect { background: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0; }
+                            .refresh-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+                            .refresh-btn:hover { background: #0056b3; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="salon-info">
+                                <h2>🏢 ${salon.name}</h2>
+                                <p>📍 Salon ID: ${salonId}</p>
+                                <p>📱 Port: ${salon.port}</p>
+                            </div>
+                            
+                            <h1>📱 WhatsApp QR Code</h1>
+                            
+                            <div class="auto-detect">
+                                <h3>🎯 Automatic Salon Detection Active!</h3>
+                                <p>✨ Once you scan this QR code and connect WhatsApp, customers can simply send <strong>"hi"</strong> and will automatically get ${salon.name}'s services and barbers!</p>
+                                <p>🔄 No need for special commands - the system will remember this is ${salon.name}'s WhatsApp number.</p>
+                            </div>
+                            
+                            <div class="qr-container">
+                                <img src="/qr-image" alt="WhatsApp QR Code" style="max-width: 300px; height: auto; border: 2px solid #25D366; border-radius: 10px;" onerror="this.style.display='none'; document.getElementById('qr-error').style.display='block';">
+                                <div id="qr-error" style="display: none; color: #dc3545; margin-top: 15px;">
+                                    <p>🔄 Generating QR code...</p>
+                                    <p>Please refresh in a few seconds.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="instructions">
+                                <h3>📋 How to Connect:</h3>
+                                <ol>
+                                    <li>🔍 Open WhatsApp on your phone</li>
+                                    <li>⚙️ Go to Settings → Linked Devices</li>
+                                    <li>➕ Tap "Link a Device"</li>
+                                    <li>📷 Scan the QR code above</li>
+                                    <li>✅ Wait for connection confirmation</li>
+                                </ol>
+                            </div>
+                            
+                            <button class="refresh-btn" onclick="window.location.reload()">🔄 Refresh QR Code</button>
+                            
+                            <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                                🔄 This page will auto-refresh every 30 seconds to check connection status
+                            </p>
                         </div>
                         
-                        <div class="instructions">
-                            <h3>📋 How to Connect:</h3>
-                            <ol>
-                                <li>🔍 Open WhatsApp on your phone</li>
-                                <li>⚙️ Go to Settings → Linked Devices</li>
-                                <li>➕ Tap "Link a Device"</li>
-                                <li>📷 Scan the QR code above</li>
-                                <li>✅ Wait for connection confirmation</li>
-                            </ol>
-                        </div>
-                        
-                        <button class="refresh-btn" onclick="window.location.reload()">🔄 Refresh QR Code</button>
-                        
-                        <p style="margin-top: 20px; color: #666; font-size: 14px;">
-                            🔄 This page will auto-refresh every 30 seconds to check connection status
-                        </p>
-                    </div>
-                    
-                    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-                    <script>
-                        // Auto-refresh every 30 seconds to check connection status
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 30000);
-                    </script>
-                </body>
-                </html>
-            `);
+                        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+                        <script>
+                            // Auto-refresh every 30 seconds to check connection status
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 30000);
+                        </script>
+                    </body>
+                    </html>
+                `);
+            }
         } else {
             res.send(`
                 <!DOCTYPE html>
@@ -839,12 +905,54 @@ async function initializeSalonQROnly(salonId) {
             }
         }
         
-        // Retry after delay
-        setTimeout(() => {
-            console.log(`🔄 [${salon.name}] Retrying QR generation in 2 minutes...`);
-            initializeSalonQROnly(salonId);
-        }, 120000);
+        // Check if this is a Chrome failure and fall back to static QR
+        if (error.message.includes('Session closed') || error.message.includes('Protocol error') || error.message.includes('Target closed')) {
+            console.log(`🔧 [${salon.name}] Chrome failure detected - falling back to static QR`);
+            generateStaticQRFallback(salonId);
+        } else {
+            // Retry after delay for other errors
+            setTimeout(() => {
+                console.log(`🔄 [${salon.name}] Retrying QR generation in 2 minutes...`);
+                initializeSalonQROnly(salonId);
+            }, 120000);
+        }
     }
+}
+
+// Static QR fallback for Railway when Chrome fails
+function generateStaticQRFallback(salonId) {
+    const salon = salonData[salonId];
+    
+    console.log(`🔧 [${salon.name}] Chrome failed - using static QR fallback for Railway`);
+    
+    // Generate a placeholder QR code with setup instructions
+    const instructionText = `WhatsApp Setup for ${salon.name}\n\nSince Chrome cannot run in Railway, please:\n1. Run this locally to get real QR\n2. Or use WhatsApp Business API\n3. Or contact support for setup\n\nSalon: ${salon.name}\nID: ${salonId}`;
+    
+    // Generate static instruction QR
+    qrcode.toFile(`${salonId}_qr.png`, instructionText, {
+        errorCorrectionLevel: 'H',
+        type: 'png',
+        quality: 0.92,
+        margin: 1,
+        color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+        },
+        width: 512
+    }, (err) => {
+        if (err) {
+            console.error(`❌ [${salon.name}] Error generating static QR:`, err);
+        } else {
+            console.log(`✅ [${salon.name}] Static instruction QR generated`);
+        }
+    });
+    
+    // Set static QR data
+    salon.qrCodeData = instructionText;
+    salon.connectionStatus.qr_generated_count += 1;
+    saveConnectionStatus(salonId);
+    
+    console.log(`📋 [${salon.name}] Static QR fallback active - manual setup required`);
 }
 
 // Graceful shutdown
