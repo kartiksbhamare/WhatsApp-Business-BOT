@@ -21,15 +21,75 @@ let isReady = false;
 
 console.log(`🔧 Initializing WhatsApp client...`);
 
+// Determine Chrome executable path based on environment
+function getChromeExecutablePath() {
+    // Check if running in Docker container
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        console.log(`🐳 Using Docker Chrome path: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+        return process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+    
+    // Check for common Chrome paths
+    const fs = require('fs');
+    const chromePaths = [
+        '/usr/bin/google-chrome-stable',  // Linux
+        '/usr/bin/google-chrome',         // Linux alternative
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // macOS
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',    // Windows
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Windows 32-bit
+    ];
+    
+    for (const path of chromePaths) {
+        if (fs.existsSync(path)) {
+            console.log(`🔍 Found Chrome at: ${path}`);
+            return path;
+        }
+    }
+    
+    console.log(`⚠️ Chrome not found in standard locations, using system default`);
+    return undefined; // Let Puppeteer use its default
+}
+
+// Get Puppeteer arguments based on environment
+function getPuppeteerArgs() {
+    const baseArgs = ['--no-sandbox', '--disable-setuid-sandbox'];
+    
+    // Add Docker-specific arguments if in container
+    if (process.env.PUPPETEER_ARGS) {
+        const dockerArgs = process.env.PUPPETEER_ARGS.split(' ');
+        return [...baseArgs, ...dockerArgs];
+    }
+    
+    // Add additional arguments for stability
+    return [
+        ...baseArgs,
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--disable-extensions'
+    ];
+}
+
 try {
-    // Initialize WhatsApp client with minimal configuration
+    // Initialize WhatsApp client with dynamic Chrome configuration
+    const chromeExecutablePath = getChromeExecutablePath();
+    const puppeteerArgs = getPuppeteerArgs();
+    
+    console.log(`🔧 Chrome executable: ${chromeExecutablePath || 'system default'}`);
+    console.log(`🔧 Puppeteer args: ${puppeteerArgs.join(' ')}`);
+    
+    const puppeteerConfig = {
+        headless: true,
+        args: puppeteerArgs
+    };
+    
+    if (chromeExecutablePath) {
+        puppeteerConfig.executablePath = chromeExecutablePath;
+    }
+    
     whatsappClient = new Client({
         authStrategy: new LocalAuth({ clientId: 'simple-salon' }),
-        puppeteer: {
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-        }
+        puppeteer: puppeteerConfig
     });
 
     console.log(`✅ WhatsApp client created successfully`);

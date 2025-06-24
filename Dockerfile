@@ -75,23 +75,27 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Copy Firebase credentials if it exists (required for production)
+COPY firebase-key.json* ./
+
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/.wwebjs_auth /app/.wwebjs_cache /app/tokens \
     && chmod -R 755 /app/.wwebjs_auth /app/.wwebjs_cache /app/tokens \
     && mkdir -p /tmp/chrome-user-data \
     && chmod -R 755 /tmp/chrome-user-data
 
-# Set environment variables
+# Set environment variables for Chrome in container
 ENV DISPLAY=:99
-ENV CHROME_BIN=/usr/bin/google-chrome
+ENV CHROME_BIN=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+ENV PUPPETEER_ARGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --no-first-run --no-zygote --single-process --disable-extensions"
 
-# Make start script executable
-RUN chmod +x start.sh
+# Make start scripts executable
+RUN chmod +x start.sh start_bot.sh 2>/dev/null || true
 
-# Expose port
-EXPOSE 8080
+# Expose ports
+EXPOSE 8000 3000
 
 # Start the application
-CMD ["./start.sh"] 
+CMD ["./start_bot.sh"] 

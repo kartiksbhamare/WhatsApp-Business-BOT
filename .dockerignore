@@ -1,0 +1,65 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# WhatsApp session data (will be created in container)
+.wwebjs_auth
+.wwebjs_cache
+tokens
+*.png
+connection_status_*.json
+
+# Local development files
+.env.local
+.env.development
+.env.test
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+
+# Test files
+test_*
+*_test.py 
