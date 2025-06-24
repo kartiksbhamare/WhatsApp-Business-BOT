@@ -59,21 +59,16 @@ function getChromeExecutablePath() {
 function getPuppeteerArgs() {
     const baseArgs = ['--no-sandbox', '--disable-setuid-sandbox'];
     
-    // Add Docker-specific arguments if in container
-    if (process.env.PUPPETEER_ARGS) {
-        const dockerArgs = process.env.PUPPETEER_ARGS.split(' ');
-        return [...baseArgs, ...dockerArgs];
-    }
-    
-    // Check if running in Railway/container environment
+    // Check if running in Railway/container environment first
     const isContainer = process.env.RAILWAY_ENVIRONMENT || process.env.DOCKER_ENV || 
                        process.env.PUPPETEER_EXECUTABLE_PATH || 
                        fs.existsSync('/usr/bin/google-chrome-stable');
     
     if (isContainer) {
-        // Container-specific arguments for Railway/Docker
+        // Container-specific arguments for Railway/Docker (don't add baseArgs again)
         return [
-            ...baseArgs,
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--no-first-run',
@@ -86,16 +81,30 @@ function getPuppeteerArgs() {
             '--disable-ipc-flooding-protection',
             '--disable-features=TranslateUI',
             '--disable-features=BlinkGenPropertyTrees',
-            '--run-all-compositor-stages-before-draw',
-            '--disable-threaded-animation',
-            '--disable-threaded-scrolling',
-            '--disable-checker-imaging',
-            '--disable-new-content-rendering-timeout',
-            '--disable-image-animation-resync',
-            '--disable-partial-raster',
+            '--disable-hang-monitor',
+            '--disable-prompt-on-repost',
+            '--disable-sync',
+            '--disable-translate',
+            '--memory-pressure-off',
+            '--max_old_space_size=4096',
             '--use-gl=swiftshader',
-            '--disable-software-rasterizer'
+            '--disable-software-rasterizer',
+            '--disable-background-networking',
+            '--hide-scrollbars',
+            '--metrics-recording-only',
+            '--mute-audio',
+            '--no-default-browser-check',
+            '--safebrowsing-disable-auto-update',
+            '--ignore-certificate-errors',
+            '--ignore-ssl-errors',
+            '--ignore-certificate-errors-spki-list'
         ];
+    }
+    
+    // Add Docker-specific arguments if in container (fallback)
+    if (process.env.PUPPETEER_ARGS) {
+        const dockerArgs = process.env.PUPPETEER_ARGS.split(' ').filter(arg => arg.trim());
+        return [...baseArgs, ...dockerArgs];
     }
     
     // Add additional arguments for stability (local development)

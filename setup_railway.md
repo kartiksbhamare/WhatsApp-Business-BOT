@@ -14,6 +14,7 @@ FIREBASE_CREDENTIALS_BASE64=<your-base64-string-from-generate_base64_credentials
 PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 CHROME_BIN=/usr/bin/google-chrome-stable
 RAILWAY_ENVIRONMENT=true
+DOCKER_ENV=true
 
 # Application Configuration
 PORT=8000
@@ -22,6 +23,10 @@ DEBUG=false
 LOG_LEVEL=INFO
 BACKEND_URL=http://localhost:8000
 WHATSAPP_SERVICE_URL=http://localhost:3000
+
+# Railway Performance Optimization
+NODE_OPTIONS=--max-old-space-size=4096
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ```
 
 ### 2. Firebase Service Account Key
