@@ -91,6 +91,8 @@ ENV CHROME_BIN=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_ARGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --no-first-run --no-zygote --single-process --disable-extensions --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding"
+ENV RAILWAY_ENVIRONMENT=true
+ENV DOCKER_ENV=true
 
 # Make start scripts executable
 RUN chmod +x start.sh start_bot.sh 2>/dev/null || true

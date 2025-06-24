@@ -2,6 +2,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
 const qrcode = require('qrcode');
 const axios = require('axios');
+const fs = require('fs');
 
 const PORT = process.env.PORT || 3000;
 const SALON_NAME = process.env.SALON_NAME || 'Beauty Salon';
@@ -30,7 +31,6 @@ function getChromeExecutablePath() {
     }
     
     // Check for common Chrome paths (prioritize Linux for containers)
-    const fs = require('fs');
     const chromePaths = [
         '/usr/bin/google-chrome-stable',  // Linux (Docker/Railway)
         '/usr/bin/google-chrome',         // Linux alternative
@@ -65,7 +65,40 @@ function getPuppeteerArgs() {
         return [...baseArgs, ...dockerArgs];
     }
     
-    // Add additional arguments for stability
+    // Check if running in Railway/container environment
+    const isContainer = process.env.RAILWAY_ENVIRONMENT || process.env.DOCKER_ENV || 
+                       process.env.PUPPETEER_EXECUTABLE_PATH || 
+                       fs.existsSync('/usr/bin/google-chrome-stable');
+    
+    if (isContainer) {
+        // Container-specific arguments for Railway/Docker
+        return [
+            ...baseArgs,
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-extensions',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-ipc-flooding-protection',
+            '--disable-features=TranslateUI',
+            '--disable-features=BlinkGenPropertyTrees',
+            '--run-all-compositor-stages-before-draw',
+            '--disable-threaded-animation',
+            '--disable-threaded-scrolling',
+            '--disable-checker-imaging',
+            '--disable-new-content-rendering-timeout',
+            '--disable-image-animation-resync',
+            '--disable-partial-raster',
+            '--use-gl=swiftshader',
+            '--disable-software-rasterizer'
+        ];
+    }
+    
+    // Add additional arguments for stability (local development)
     return [
         ...baseArgs,
         '--disable-dev-shm-usage',

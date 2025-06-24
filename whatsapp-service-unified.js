@@ -129,7 +129,45 @@ function initializeWhatsApp() {
             return [...baseArgs, ...dockerArgs];
         }
         
-        // Add additional arguments for stability
+        // Check if running in Railway/container environment
+        const isContainer = process.env.RAILWAY_ENVIRONMENT || process.env.DOCKER_ENV || 
+                           process.env.PUPPETEER_EXECUTABLE_PATH || 
+                           fs.existsSync('/usr/bin/google-chrome-stable');
+        
+        if (isContainer) {
+            // Container-specific arguments for Railway/Docker
+            return [
+                ...baseArgs,
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor',
+                '--disable-extensions',
+                '--disable-plugins',
+                '--disable-default-apps',
+                '--single-process',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+                '--disable-ipc-flooding-protection',
+                '--disable-features=TranslateUI',
+                '--disable-features=BlinkGenPropertyTrees',
+                '--run-all-compositor-stages-before-draw',
+                '--disable-threaded-animation',
+                '--disable-threaded-scrolling',
+                '--disable-checker-imaging',
+                '--disable-new-content-rendering-timeout',
+                '--disable-image-animation-resync',
+                '--disable-partial-raster',
+                '--use-gl=swiftshader',
+                '--disable-software-rasterizer'
+            ];
+        }
+        
+        // Add additional arguments for stability (local development)
         return [
             ...baseArgs,
             '--disable-dev-shm-usage',
