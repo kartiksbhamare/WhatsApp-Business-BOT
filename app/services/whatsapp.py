@@ -82,15 +82,10 @@ def send_confirmation(phone: str, barber: str, time_slot: str, service: str) -> 
         return False
 
 def check_whatsapp_service_health() -> bool:
-    """
-    Check if WhatsApp Web service is running and ready
-    
-    Returns:
-        bool: True if service is ready
-    """
+    """Check if WhatsApp Web.js service is running and healthy"""
     try:
-        settings = get_settings()
-        response = requests.get(f"{settings.WHATSAPP_SERVICE_URL}/health", timeout=5)
+        # Use port 3000 for the simplified service
+        response = requests.get('http://localhost:3000/health', timeout=5)
         if response.status_code == 200:
             data = response.json()
             return data.get('status') == 'ready'

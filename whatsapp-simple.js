@@ -1,0 +1,269 @@
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const express = require('express');
+const qrcode = require('qrcode');
+const axios = require('axios');
+
+const PORT = process.env.PORT || 3000;
+const SALON_NAME = process.env.SALON_NAME || 'Beauty Salon';
+
+console.log(`🏢 Starting ${SALON_NAME} WhatsApp Bot`);
+console.log(`📋 Port: ${PORT}`);
+console.log(`📋 Salon: ${SALON_NAME}`);
+
+// Express app
+const app = express();
+app.use(express.json());
+
+// Global storage
+let whatsappClient = null;
+let qrCodeData = null;
+let isReady = false;
+
+console.log(`🔧 Initializing WhatsApp client...`);
+
+try {
+    // Initialize WhatsApp client with minimal configuration
+    whatsappClient = new Client({
+        authStrategy: new LocalAuth({ clientId: 'simple-salon' }),
+        puppeteer: {
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        }
+    });
+
+    console.log(`✅ WhatsApp client created successfully`);
+
+    // QR Code event
+    whatsappClient.on('qr', (qr) => {
+        console.log(`📱 [${SALON_NAME}] QR Code generated`);
+        qrCodeData = qr;
+        
+        // Generate QR code image
+        qrcode.toFile('qr.png', qr, (err) => {
+            if (err) {
+                console.error(`❌ [${SALON_NAME}] Error generating QR code image:`, err);
+            } else {
+                console.log(`✅ [${SALON_NAME}] QR code image saved as qr.png`);
+            }
+        });
+    });
+
+    // Ready event
+    whatsappClient.on('ready', () => {
+        console.log(`✅ [${SALON_NAME}] WhatsApp Bot is ready!`);
+        isReady = true;
+        qrCodeData = null;
+    });
+
+    // Message received event
+    whatsappClient.on('message', async (message) => {
+        console.log(`📨 [${SALON_NAME}] Received message from ${message.from}:`);
+        console.log(`📝 Message body: "${message.body}"`);
+        console.log(`👤 Contact name: ${message._data.notifyName || 'Unknown'}`);
+        console.log(`📊 Message type: ${message.type}`);
+        console.log(`🔍 Is status: ${message.isStatus}`);
+        console.log(`👥 Is group: ${message.from.includes('@g.us')}`);
+        
+        // Skip if message is from status broadcast or groups
+        if (message.isStatus || message.from.includes('@g.us')) {
+            console.log(`⏭️ [${SALON_NAME}] Skipping status/group message`);
+            return;
+        }
+        
+        try {
+            console.log(`🔗 [${SALON_NAME}] Sending to backend webhook...`);
+            
+            // Send to backend webhook
+            const webhookData = {
+                body: message.body,
+                from: message.from,
+                contactName: message._data.notifyName || 'Unknown'
+            };
+            
+            console.log(`📤 [${SALON_NAME}] Webhook data:`, JSON.stringify(webhookData, null, 2));
+            
+            const response = await axios.post('http://localhost:8000/webhook/whatsapp', webhookData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+            
+            console.log(`📊 [${SALON_NAME}] Backend response status: ${response.status}`);
+            console.log(`📝 [${SALON_NAME}] Backend response:`, JSON.stringify(response.data, null, 2));
+            
+            if (response.data && response.data.reply) {
+                console.log(`📤 [${SALON_NAME}] Sending reply to ${message.from}: ${response.data.reply}`);
+                await whatsappClient.sendMessage(message.from, response.data.reply);
+                console.log(`✅ [${SALON_NAME}] Reply sent successfully`);
+            } else {
+                console.log(`ℹ️ [${SALON_NAME}] No reply from backend`);
+            }
+        } catch (error) {
+            console.error(`❌ [${SALON_NAME}] Error processing message:`, error.message);
+            if (error.response) {
+                console.error(`📊 [${SALON_NAME}] Backend error status: ${error.response.status}`);
+                console.error(`📝 [${SALON_NAME}] Backend error data:`, error.response.data);
+            }
+            
+            // Send error message to user
+            try {
+                await whatsappClient.sendMessage(message.from, "😔 Sorry, we're experiencing technical difficulties. Please try again later or contact us directly.");
+                console.log(`📤 [${SALON_NAME}] Error message sent to user`);
+            } catch (sendError) {
+                console.error(`❌ [${SALON_NAME}] Error sending error message:`, sendError.message);
+            }
+        }
+    });
+
+    // Error handling
+    whatsappClient.on('disconnected', (reason) => {
+        console.log(`❌ [${SALON_NAME}] WhatsApp Bot disconnected:`, reason);
+        isReady = false;
+    });
+
+    console.log(`🔧 Setting up event handlers complete`);
+
+} catch (error) {
+    console.error(`❌ Error creating WhatsApp client:`, error);
+    process.exit(1);
+}
+
+// Express routes
+app.get('/health', (req, res) => {
+    res.json({
+        status: isReady ? 'ready' : 'not_ready',
+        salon: SALON_NAME,
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.get('/qr', (req, res) => {
+    if (isReady) {
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${SALON_NAME} - Connected</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #e8f5e8; }
+                    .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>✅ ${SALON_NAME} WhatsApp Connected!</h1>
+                    <p>Your bot is ready to receive messages.</p>
+                </div>
+            </body>
+            </html>
+        `);
+    } else if (qrCodeData) {
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${SALON_NAME} - Scan QR Code</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f0f8ff; }
+                    .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                    .qr-container { margin: 20px 0; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>📱 ${SALON_NAME} - Scan QR Code</h1>
+                    <div class="qr-container">
+                        <img src="/qr-image" alt="WhatsApp QR Code" style="max-width: 300px; border: 2px solid #25D366; border-radius: 10px;">
+                    </div>
+                    <p><strong>How to Connect:</strong></p>
+                    <ol style="text-align: left; display: inline-block;">
+                        <li>Open WhatsApp on your phone</li>
+                        <li>Go to Settings → Linked Devices</li>
+                        <li>Tap "Link a Device"</li>
+                        <li>Scan the QR code above</li>
+                    </ol>
+                    <p>Once connected, customers can send "hi" to start booking!</p>
+                </div>
+                
+                <script>
+                    // Auto-refresh every 30 seconds
+                    setTimeout(() => window.location.reload(), 30000);
+                </script>
+            </body>
+            </html>
+        `);
+    } else {
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${SALON_NAME} - Initializing</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f8ff; }
+                    .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>🔄 ${SALON_NAME} - Initializing...</h1>
+                    <div class="spinner"></div>
+                    <p>Please wait while we generate your QR code...</p>
+                </div>
+                
+                <script>
+                    // Auto-refresh every 5 seconds
+                    setTimeout(() => window.location.reload(), 5000);
+                </script>
+            </body>
+            </html>
+        `);
+    }
+});
+
+app.get('/qr-image', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    const qrImagePath = 'qr.png';
+    
+    if (fs.existsSync(qrImagePath)) {
+        res.sendFile(path.resolve(qrImagePath));
+    } else {
+        res.status(404).json({ error: 'QR code image not found' });
+    }
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`🚀 [${SALON_NAME}] WhatsApp Bot running on port ${PORT}`);
+    console.log(`🔗 [${SALON_NAME}] QR Code URL: http://localhost:${PORT}/qr`);
+    
+    // Initialize WhatsApp after server starts
+    console.log(`🔄 [${SALON_NAME}] Initializing WhatsApp client...`);
+    whatsappClient.initialize().catch((error) => {
+        console.error(`❌ [${SALON_NAME}] Initialization failed:`, error.message);
+        console.log(`🔄 [${SALON_NAME}] Retrying in 10 seconds...`);
+        setTimeout(() => {
+            whatsappClient.initialize();
+        }, 10000);
+    });
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('\n🛑 Shutting down WhatsApp Bot...');
+    if (whatsappClient) {
+        try {
+            await whatsappClient.destroy();
+            console.log(`✅ [${SALON_NAME}] WhatsApp client shutdown complete`);
+        } catch (error) {
+            console.error(`❌ [${SALON_NAME}] Error during shutdown:`, error.message);
+        }
+    }
+    console.log('👋 Bot shut down. Goodbye!');
+    process.exit(0);
+}); 

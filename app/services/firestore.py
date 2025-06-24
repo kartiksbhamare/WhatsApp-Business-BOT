@@ -307,47 +307,15 @@ def init_default_data():
         existing_salons = list(salons_ref.stream())
         
         if len(existing_salons) == 0:
-            logger.info("No salons found. Initializing multi-salon setup...")
+            logger.info("No salons found. Please add salons manually to Firebase...")
             
-            # Create default salons
-            default_salons = [
-                Salon(
-                    id="salon_a",
-                    name="Downtown Beauty Salon", 
-                    phone=settings.SALON_A_PHONE,
-                    address="123 Main Street, Downtown",
-                    whatsapp_service_url=settings.SALON_A_WHATSAPP_URL,
-                    working_hours={"Monday": "09:00-17:00", "Tuesday": "09:00-17:00", "Wednesday": "09:00-17:00", "Thursday": "09:00-17:00", "Friday": "09:00-17:00", "Saturday": "10:00-16:00"},
-                    timezone="UTC",
-                    active=True
-                ),
-                Salon(
-                    id="salon_b", 
-                    name="Uptown Hair Studio",
-                    phone=settings.SALON_B_PHONE,
-                    address="456 Oak Avenue, Uptown",
-                    whatsapp_service_url=settings.SALON_B_WHATSAPP_URL,
-                    working_hours={"Monday": "10:00-18:00", "Tuesday": "10:00-18:00", "Wednesday": "10:00-18:00", "Thursday": "10:00-18:00", "Friday": "10:00-18:00", "Saturday": "09:00-17:00"},
-                    timezone="UTC",
-                    active=True
-                ),
-                Salon(
-                    id="salon_c",
-                    name="Luxury Spa & Salon",
-                    phone=settings.SALON_C_PHONE, 
-                    address="789 Elm Street, Westside",
-                    whatsapp_service_url=settings.SALON_C_WHATSAPP_URL,
-                    working_hours={"Tuesday": "09:00-17:00", "Wednesday": "09:00-17:00", "Thursday": "09:00-17:00", "Friday": "09:00-17:00", "Saturday": "10:00-18:00", "Sunday": "10:00-16:00"},
-                    timezone="UTC",
-                    active=True
-                )
-            ]
+            # No hardcoded salons - require manual setup
+            default_salons = []  # No hardcoded salon data
             
-            # Initialize salons
-            for salon in default_salons:
-                doc_ref = salons_ref.document(salon.id)
-                doc_ref.set(salon.dict())
-                logger.info(f"Initialized salon: {salon.name}")
+            if not default_salons:
+                logger.info("❌ No default salons configured - please add salons manually to Firebase")
+                logger.info("💡 Salons must be added through Firebase console or admin interface")
+                return  # Don't create any salons automatically
         else:
             logger.info(f"Found {len(existing_salons)} existing salons")
 
@@ -359,16 +327,12 @@ def init_default_data():
             logger.info("No services found. Initializing multi-salon services...")
             
             # Create services for each salon
-            base_services = [
-                {"id": "1", "name": "Hair Cut", "duration": 30, "price": 25.00, "description": "Professional hair cutting and styling"},
-                {"id": "2", "name": "Hair Color", "duration": 90, "price": 75.00, "description": "Hair coloring and highlights"},
-                {"id": "3", "name": "Manicure", "duration": 45, "price": 30.00, "description": "Professional nail care and manicure"},
-                {"id": "4", "name": "Pedicure", "duration": 45, "price": 40.00, "description": "Complete foot care and pedicure"},
-                {"id": "5", "name": "Hair Wash & Blow Dry", "duration": 30, "price": 20.00, "description": "Hair wash and professional blow dry"},
-                {"id": "6", "name": "Facial Treatment", "duration": 60, "price": 50.00, "description": "Rejuvenating facial treatment"},
-                {"id": "7", "name": "Beard Trim", "duration": 20, "price": 15.00, "description": "Professional beard trimming and shaping"},
-                {"id": "8", "name": "Eyebrow Threading", "duration": 15, "price": 12.00, "description": "Precise eyebrow shaping and threading"}
-            ]
+            base_services = []  # No hardcoded services - must be added manually to Firebase
+            
+            if not base_services:
+                logger.info("❌ No default services configured - please add services manually to Firebase")
+                logger.info("💡 Services must be added through Firebase console or admin interface")
+                return  # Don't create any services automatically
             
             salon_ids = ["salon_a", "salon_b", "salon_c"]
             
@@ -397,24 +361,18 @@ def init_default_data():
             logger.info("No barbers found. Initializing multi-salon staff...")
             
             # Create barbers for each salon
-            salon_barbers = {
-                "salon_a": [
-                    {"name": "Maya", "services": ["salon_a_1", "salon_a_2", "salon_a_5", "salon_a_6"], "email": "maya@downtownbeauty.com", "working_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "specialties": ["Hair Coloring", "Facial Treatments"], "experience_years": 6},
-                    {"name": "Raj", "services": ["salon_a_1", "salon_a_3", "salon_a_4", "salon_a_7"], "email": "raj@downtownbeauty.com", "working_days": ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], "specialties": ["Men's Grooming", "Nail Care"], "experience_years": 4}
-                ],
-                "salon_b": [  
-                    {"name": "Aisha", "services": ["salon_b_1", "salon_b_2", "salon_b_3", "salon_b_5", "salon_b_8"], "email": "aisha@uptownhair.com", "working_days": ["Monday", "Wednesday", "Thursday", "Friday", "Saturday"], "specialties": ["Hair Styling", "Beauty Treatments"], "experience_years": 8},
-                    {"name": "Ravi", "services": ["salon_b_1", "salon_b_7", "salon_b_5"], "email": "ravi@uptownhair.com", "working_days": ["Monday", "Tuesday", "Thursday", "Friday", "Saturday"], "specialties": ["Men's Haircuts", "Beard Styling"], "experience_years": 5}
-                ],
-                "salon_c": [
-                    {"name": "Priya", "services": ["salon_c_3", "salon_c_4", "salon_c_6", "salon_c_8"], "email": "priya@luxuryspa.com", "working_days": ["Tuesday", "Friday", "Saturday", "Sunday"], "specialties": ["Spa Treatments", "Nail Art"], "experience_years": 7},
-                    {"name": "Dev", "services": ["salon_c_1", "salon_c_2", "salon_c_5"], "email": "dev@luxuryspa.com", "working_days": ["Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], "specialties": ["Hair Design", "Color Specialist"], "experience_years": 9}
-                ]
-            }
+            salon_barbers = {}  # No hardcoded barbers - must be added manually to Firebase
             
-            # Initialize barbers for each salon
-            for salon_id, barbers in salon_barbers.items():
-                for barber_data in barbers:
+            if not salon_barbers:
+                logger.info("❌ No default barbers configured - please add barbers manually to Firebase")
+                logger.info("💡 Barbers must be added through Firebase console or admin interface")
+                return  # Don't create any barbers automatically
+            
+            salon_ids = ["salon_a", "salon_b", "salon_c"]
+            
+            # Create barbers for each salon
+            for salon_id in salon_ids:
+                for barber_data in salon_barbers:
                     barber = Barber(
                         name=barber_data["name"],
                         salon_id=salon_id,
@@ -592,90 +550,14 @@ def initialize_salon_data():
     if not use_local_storage() and db:
         # Use Firebase
         try:
-            salon_data = [
-                {
-                    "id": "salon_a",
-                    "name": "Downtown Beauty Salon", 
-                    "address": "123 Downtown St, City Center",
-                    "phone": "919307748525",
-                    "email": "downtown@beauty.com",
-                    "services": [
-                        {"name": "Haircut", "duration": 30, "price": 25.0},
-                        {"name": "Hair Wash", "duration": 15, "price": 10.0},
-                        {"name": "Styling", "duration": 45, "price": 35.0}
-                    ],
-                    "barbers": [
-                        {"name": "Alex", "specialties": ["Haircut", "Styling"]},
-                        {"name": "Maria", "specialties": ["Hair Wash", "Styling"]}
-                    ],
-                    "working_hours": {
-                        "monday": "09:00-18:00",
-                        "tuesday": "09:00-18:00", 
-                        "wednesday": "09:00-18:00",
-                        "thursday": "09:00-18:00",
-                        "friday": "09:00-18:00",
-                        "saturday": "10:00-16:00",
-                        "sunday": "Closed"
-                    }
-                },
-                {
-                    "id": "salon_b", 
-                    "name": "Uptown Hair Studio",
-                    "address": "456 Uptown Ave, Fashion District",
-                    "phone": "919307748525",
-                    "email": "uptown@hairstudio.com",
-                    "services": [
-                        {"name": "Premium Cut", "duration": 60, "price": 50.0},
-                        {"name": "Color Treatment", "duration": 120, "price": 80.0},
-                        {"name": "Deep Conditioning", "duration": 45, "price": 40.0}
-                    ],
-                    "barbers": [
-                        {"name": "Sophie", "specialties": ["Premium Cut", "Color Treatment"]},
-                        {"name": "James", "specialties": ["Premium Cut", "Deep Conditioning"]}
-                    ],
-                    "working_hours": {
-                        "monday": "10:00-19:00",
-                        "tuesday": "10:00-19:00",
-                        "wednesday": "10:00-19:00", 
-                        "thursday": "10:00-19:00",
-                        "friday": "10:00-19:00",
-                        "saturday": "09:00-17:00",
-                        "sunday": "11:00-16:00"
-                    }
-                },
-                {
-                    "id": "salon_c",
-                    "name": "Luxury Spa & Salon",
-                    "address": "789 Luxury Blvd, Premium District", 
-                    "phone": "919307748525",
-                    "email": "luxury@spa.com",
-                    "services": [
-                        {"name": "Luxury Haircut", "duration": 90, "price": 100.0},
-                        {"name": "Spa Treatment", "duration": 180, "price": 200.0},
-                        {"name": "Facial & Hair", "duration": 120, "price": 150.0}
-                    ],
-                    "barbers": [
-                        {"name": "Isabella", "specialties": ["Luxury Haircut", "Spa Treatment"]},
-                        {"name": "Michael", "specialties": ["Luxury Haircut", "Facial & Hair"]}
-                    ],
-                    "working_hours": {
-                        "monday": "08:00-20:00",
-                        "tuesday": "08:00-20:00",
-                        "wednesday": "08:00-20:00",
-                        "thursday": "08:00-20:00", 
-                        "friday": "08:00-20:00",
-                        "saturday": "09:00-18:00",
-                        "sunday": "10:00-17:00"
-                    }
-                }
-            ]
+            salon_data = []  # No hardcoded salon data - must be added manually to Firebase
             
-            # Initialize each salon in Firebase
-            for salon in salon_data:
-                salon_ref = db.collection('salons').document(salon['id'])
-                salon_ref.set(salon)
-                logger.info(f"✅ Initialized salon in Firebase: {salon['name']} ({salon['id']})")
+            if not salon_data:
+                logger.info("❌ No default salon data configured - please add salon data manually to Firebase")
+                logger.info("💡 Salon data must be added through Firebase console or admin interface")
+                return False
             
+            # No automatic initialization
             logger.info("🎉 All salon data initialized successfully in Firebase!")
             return True
             
@@ -686,83 +568,12 @@ def initialize_salon_data():
         # Use local storage fallback
         try:
             global local_db
-            salon_data = {
-                "salon_a": {
-                    "id": "salon_a",
-                    "name": "Downtown Beauty Salon", 
-                    "address": "123 Downtown St, City Center",
-                    "phone": "919307748525",
-                    "email": "downtown@beauty.com",
-                    "services": [
-                        {"name": "Haircut", "duration": 30, "price": 25.0},
-                        {"name": "Hair Wash", "duration": 15, "price": 10.0},
-                        {"name": "Styling", "duration": 45, "price": 35.0}
-                    ],
-                    "barbers": [
-                        {"name": "Alex", "specialties": ["Haircut", "Styling"]},
-                        {"name": "Maria", "specialties": ["Hair Wash", "Styling"]}
-                    ],
-                    "working_hours": {
-                        "monday": "09:00-18:00",
-                        "tuesday": "09:00-18:00", 
-                        "wednesday": "09:00-18:00",
-                        "thursday": "09:00-18:00",
-                        "friday": "09:00-18:00",
-                        "saturday": "10:00-16:00",
-                        "sunday": "Closed"
-                    }
-                },
-                "salon_b": {
-                    "id": "salon_b", 
-                    "name": "Uptown Hair Studio",
-                    "address": "456 Uptown Ave, Fashion District",
-                    "phone": "919307748525",
-                    "email": "uptown@hairstudio.com",
-                    "services": [
-                        {"name": "Premium Cut", "duration": 60, "price": 50.0},
-                        {"name": "Color Treatment", "duration": 120, "price": 80.0},
-                        {"name": "Deep Conditioning", "duration": 45, "price": 40.0}
-                    ],
-                    "barbers": [
-                        {"name": "Sophie", "specialties": ["Premium Cut", "Color Treatment"]},
-                        {"name": "James", "specialties": ["Premium Cut", "Deep Conditioning"]}
-                    ],
-                    "working_hours": {
-                        "monday": "10:00-19:00",
-                        "tuesday": "10:00-19:00",
-                        "wednesday": "10:00-19:00", 
-                        "thursday": "10:00-19:00",
-                        "friday": "10:00-19:00",
-                        "saturday": "09:00-17:00",
-                        "sunday": "11:00-16:00"
-                    }
-                },
-                "salon_c": {
-                    "id": "salon_c",
-                    "name": "Luxury Spa & Salon",
-                    "address": "789 Luxury Blvd, Premium District", 
-                    "phone": "919307748525",
-                    "email": "luxury@spa.com",
-                    "services": [
-                        {"name": "Luxury Haircut", "duration": 90, "price": 100.0},
-                        {"name": "Spa Treatment", "duration": 180, "price": 200.0},
-                        {"name": "Facial & Hair", "duration": 120, "price": 150.0}
-                    ],
-                    "barbers": [
-                        {"name": "Isabella", "specialties": ["Luxury Haircut", "Spa Treatment"]},
-                        {"name": "Michael", "specialties": ["Luxury Haircut", "Facial & Hair"]}
-                    ],
-                    "working_hours": {
-                        "monday": "08:00-20:00",
-                        "tuesday": "08:00-20:00",
-                        "wednesday": "08:00-20:00",
-                        "thursday": "08:00-20:00", 
-                        "friday": "08:00-20:00",
-                        "saturday": "09:00-18:00",
-                        "sunday": "10:00-17:00"
-                    }
-                }
-            }
+            salon_data = {}  # No hardcoded salon data
+            
+            if not salon_data:
+                logger.info("❌ No default salon data configured - please add salon data manually")
+                logger.info("💡 Salon data must be configured manually")
+                return False
             
             local_db["salons"] = salon_data
             save_local_db()

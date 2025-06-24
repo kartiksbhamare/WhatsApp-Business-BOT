@@ -15,22 +15,12 @@ class Settings(BaseSettings):
         extra='allow'  # Allow extra fields for backward compatibility
     )
     
-    # WhatsApp Web Service Settings - Updated for Railway deployment
-    WHATSAPP_SERVICE_URL: str = "http://localhost:3005"  # Main WhatsApp service runs on port 3005 (salon_a)
+    # WhatsApp Web Service Settings - Updated for single salon
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Single WhatsApp service on port 3000
     VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
     
-    # Multi-Salon WhatsApp Service URLs
-    SALON_A_WHATSAPP_URL: str = "http://localhost:3005"
-    SALON_B_WHATSAPP_URL: str = "http://localhost:3006"
-    SALON_C_WHATSAPP_URL: str = "http://localhost:3007"
-    
-    # Multi-Salon Phone Numbers
-    SALON_A_PHONE: str = "+1234567890"
-    SALON_B_PHONE: str = "+0987654321"
-    SALON_C_PHONE: str = "+1122334455"
-    
-    # Firebase Settings - made optional with defaults for Railway deployment
-    FIREBASE_PROJECT_ID: str = "appointment-booking-4c50f"  # Default project ID
+    # Firebase Settings
+    FIREBASE_PROJECT_ID: str = "appointment-booking-4c50f"
     FIREBASE_CREDENTIALS_PATH: str = "firebase-key.json"
     
     # Google Calendar Settings (optional)
@@ -50,11 +40,16 @@ class Settings(BaseSettings):
     
     def _handle_backward_compatibility(self):
         """Handle backward compatibility for renamed environment variables"""
+        # Force correct port for simplified single-salon setup
+        self.WHATSAPP_SERVICE_URL = "http://localhost:3000"
+        logger.info("🔧 Using simplified single-salon configuration on port 3000")
+        
         # Handle legacy VENOM_SERVICE_URL for local development only
         if self.VENOM_SERVICE_URL and not os.environ.get("PORT"):
-            # Only use VENOM_SERVICE_URL for local development
-            self.WHATSAPP_SERVICE_URL = self.VENOM_SERVICE_URL
-            logger.info("Using VENOM_SERVICE_URL for backward compatibility. Please update to WHATSAPP_SERVICE_URL")
+            # Only use VENOM_SERVICE_URL for local development if it's also port 3000
+            if "3000" in str(self.VENOM_SERVICE_URL):
+                self.WHATSAPP_SERVICE_URL = self.VENOM_SERVICE_URL
+                logger.info("Using VENOM_SERVICE_URL for backward compatibility. Please update to WHATSAPP_SERVICE_URL")
     
     def _setup_logging(self):
         """Setup logging configuration"""
@@ -62,39 +57,6 @@ class Settings(BaseSettings):
             level=getattr(logging, self.LOG_LEVEL.upper()),
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-    
-    @property
-    def salon_phone_mapping(self) -> Dict[str, str]:
-        """Get phone to salon ID mapping"""
-        return {
-            # Remove the + from phone numbers for matching
-            "1234567890": "salon_a",        # Downtown Beauty Salon
-            "0987654321": "salon_b",        # Uptown Hair Studio  
-            "1122334455": "salon_c",        # Luxury Spa & Salon
-            "919307748525": "salon_a",      # Your current phone number -> salon_a
-            # Add default mapping for backward compatibility
-            "default": "salon_a"
-        }
-    
-    @property
-    def salon_whatsapp_mapping(self) -> Dict[str, str]:
-        """Get salon ID to WhatsApp service URL mapping - using actual unified service ports"""
-        return {
-            "salon_a": "http://localhost:3005",  # Downtown Beauty Salon
-            "salon_b": "http://localhost:3006",  # Uptown Hair Studio
-            "salon_c": "http://localhost:3007",  # Luxury Spa & Salon
-            # Add default salon for backward compatibility
-            "default": "http://localhost:3005"
-        }
-    
-    def get_salon_from_phone(self, to_phone: str) -> str:
-        """Get salon ID from receiving phone number"""
-        cleaned_phone = to_phone.replace("+", "").replace("@c.us", "")
-        return self.salon_phone_mapping.get(cleaned_phone, "salon_a")  # Default to 'salon_a' which exists in database
-    
-    def get_whatsapp_url_for_salon(self, salon_id: str) -> str:
-        """Get WhatsApp service URL for a specific salon"""
-        return self.salon_whatsapp_mapping.get(salon_id, self.WHATSAPP_SERVICE_URL)
     
     def _validate_settings(self):
         """Validate required settings and log configuration"""
@@ -108,7 +70,6 @@ class Settings(BaseSettings):
         
         if not os.path.exists(self.FIREBASE_CREDENTIALS_PATH):
             logger.warning(f"⚠️ Firebase credentials file not found: {self.FIREBASE_CREDENTIALS_PATH}")
-            logger.info("💡 This is normal during Railway deployment - credentials will be created from environment variable")
         else:
             logger.info("✅ Firebase credentials file found")
         
@@ -142,4 +103,4 @@ def reload_settings():
     """Reload settings (useful for testing)"""
     global _settings
     _settings = None
-    return get_settings() 
+    return get_settings()

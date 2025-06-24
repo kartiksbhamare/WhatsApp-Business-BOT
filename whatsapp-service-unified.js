@@ -5,271 +5,171 @@ const fs = require('fs');
 const axios = require('axios');
 const path = require('path');
 
-// Multi-salon configuration - Railway Single-Salon Mode
-const SALONS = {
-    salon_a: {
-        id: 'salon_a',
-        name: 'Downtown Beauty Salon',
-        port: 3005,
-        clientId: 'salon-a-client',
-        priority: 1
-    },
-    salon_b: {
-        id: 'salon_b', 
-        name: 'Uptown Hair Studio',
-        port: 3006,
-        clientId: 'salon-b-client',
-        priority: 2
-    },
-    salon_c: {
-        id: 'salon_c',
-        name: 'Luxury Spa & Salon',
-        port: 3007,
-        clientId: 'salon-c-client',
-        priority: 3
-    }
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
+const PORT = process.env.PORT || 3000;
+
+// Single salon configuration
+const SALON_NAME = process.env.SALON_NAME || 'Beauty Salon';
+
+// Global storage
+let whatsappClient = null;
+let qrCodeData = null;
+let isReady = false;
+let clientInfo = null;
+
+// Express app
+const app = express();
+app.use(express.json());
+
+// Connection status
+let connectionStatus = {
+    is_connected: false,
+    phone_number: null,
+    connected_at: null,
+    last_seen: null,
+    connection_count: 0,
+    qr_generated_count: 0
 };
 
-// Railway Single-Salon Mode - Only initialize one salon to conserve resources
-const ACTIVE_SALON = process.env.ACTIVE_SALON || 'salon_a'; // Default to salon_a
-
-// Railway QR-Only Mode - Generate QR without persistent Chrome sessions
-const QR_ONLY_MODE = process.env.QR_ONLY_MODE === 'true' || process.env.NODE_ENV === 'production';
-
-console.log(`🎯 Railway Single-Salon Mode: Initializing only ${ACTIVE_SALON}`);
-if (QR_ONLY_MODE) {
-    console.log(`🔧 QR-Only Mode: Enabled for Railway compatibility`);
-}
-
-const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
-
-// Global storage for salon data - Only for active salon
-const salonData = {};
-
-// Initialize salon data only for active salon
-const activeSalonConfig = SALONS[ACTIVE_SALON];
-if (activeSalonConfig) {
-    salonData[ACTIVE_SALON] = {
-        ...activeSalonConfig,
-        app: express(),
-        client: null,
-        qrCodeData: null,
-        isReady: false,
-        clientInfo: null,
-        connectionStatus: {
-            salon_id: ACTIVE_SALON,
-            salon_name: activeSalonConfig.name,
-            is_connected: false,
-            phone_number: null,
-            connected_at: null,
-            last_seen: null,
-            connection_count: 0,
-            qr_generated_count: 0
-        }
-    };
-    console.log(`📋 Initialized data for active salon: ${activeSalonConfig.name}`);
-} else {
-    console.error(`❌ Invalid ACTIVE_SALON: ${ACTIVE_SALON}`);
-    process.exit(1);
-}
-
-// Connection status management functions
-function getConnectionStatusFile(salonId) {
-    return `connection_status_${salonId}.json`;
-}
-
-function loadConnectionStatus(salonId) {
-    const salon = salonData[salonId];
-    const statusFile = getConnectionStatusFile(salonId);
-    
+// Connection status file management
+function loadConnectionStatus() {
+    const statusFile = 'connection_status.json';
     try {
         if (fs.existsSync(statusFile)) {
             const data = fs.readFileSync(statusFile, 'utf8');
             const loaded = JSON.parse(data);
-            salon.connectionStatus = { ...salon.connectionStatus, ...loaded };
-            console.log(`📋 [${salon.name}] Loaded connection status: ${salon.connectionStatus.is_connected ? '✅ Connected' : '❌ Not Connected'}`);
-            if (salon.connectionStatus.phone_number) {
-                console.log(`📱 [${salon.name}] Phone: ${salon.connectionStatus.phone_number}`);
+            connectionStatus = { ...connectionStatus, ...loaded };
+            console.log(`📋 [${SALON_NAME}] Loaded connection status: ${connectionStatus.is_connected ? '✅ Connected' : '❌ Not Connected'}`);
+            if (connectionStatus.phone_number) {
+                console.log(`📱 [${SALON_NAME}] Phone: ${connectionStatus.phone_number}`);
             }
         } else {
-            console.log(`📋 [${salon.name}] No previous connection status found`);
+            console.log(`📋 [${SALON_NAME}] No previous connection status found`);
         }
     } catch (error) {
-        console.error(`❌ [${salon.name}] Error loading connection status:`, error.message);
+        console.error(`❌ [${SALON_NAME}] Error loading connection status:`, error.message);
     }
 }
 
-function saveConnectionStatus(salonId) {
-    const salon = salonData[salonId];
-    const statusFile = getConnectionStatusFile(salonId);
-    
+function saveConnectionStatus() {
+    const statusFile = 'connection_status.json';
     try {
-        fs.writeFileSync(statusFile, JSON.stringify(salon.connectionStatus, null, 2));
-        console.log(`💾 [${salon.name}] Connection status saved`);
+        fs.writeFileSync(statusFile, JSON.stringify(connectionStatus, null, 2));
+        console.log(`💾 [${SALON_NAME}] Connection status saved`);
     } catch (error) {
-        console.error(`❌ [${salon.name}] Error saving connection status:`, error.message);
+        console.error(`❌ [${SALON_NAME}] Error saving connection status:`, error.message);
     }
 }
 
-function updateConnectionStatus(salonId, isConnected, phoneNumber = null) {
-    const salon = salonData[salonId];
+function updateConnectionStatus(isConnected, phoneNumber = null) {
     const now = new Date().toISOString();
     
-    salon.connectionStatus.is_connected = isConnected;
-    salon.connectionStatus.last_seen = now;
+    connectionStatus.is_connected = isConnected;
+    connectionStatus.last_seen = now;
     
     if (isConnected) {
-        salon.connectionStatus.phone_number = phoneNumber;
-        salon.connectionStatus.connected_at = now;
-        salon.connectionStatus.connection_count += 1;
-        console.log(`✅ [${salon.name}] WhatsApp connected! Phone: ${phoneNumber}`);
+        connectionStatus.phone_number = phoneNumber;
+        connectionStatus.connected_at = now;
+        connectionStatus.connection_count += 1;
+        console.log(`✅ [${SALON_NAME}] WhatsApp connected! Phone: ${phoneNumber}`);
     } else {
-        console.log(`❌ [${salon.name}] WhatsApp disconnected`);
+        console.log(`❌ [${SALON_NAME}] WhatsApp disconnected`);
     }
     
-    saveConnectionStatus(salonId);
+    saveConnectionStatus();
 }
 
-// Initialize WhatsApp clients and Express apps for each salon
-function initializeSalon(salonId) {
-    const salon = salonData[salonId];
-    
-    console.log(`🏢 Initializing ${salon.name}`);
-    console.log(`🔗 Salon ID: ${salonId}`);
-    console.log(`📱 Port: ${salon.port}`);
+// Initialize WhatsApp client
+function initializeWhatsApp() {
+    console.log(`🏢 Initializing ${SALON_NAME} WhatsApp Bot`);
     
     // Load connection status
-    loadConnectionStatus(salonId);
+    loadConnectionStatus();
     
-    // Initialize WhatsApp client with Railway-optimized configuration
-    salon.client = new Client({
-        authStrategy: new LocalAuth({ 
-            clientId: salon.clientId,
-            dataPath: `./.wwebjs_auth/session-${salon.clientId}`
-        }),
+    // Initialize WhatsApp client with simpler configuration
+    whatsappClient = new Client({
+        authStrategy: new LocalAuth({ clientId: 'salon-bot' }),
         puppeteer: {
             headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-                '--disable-gpu',
+                '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
-                '--single-process',
-                '--disable-background-timer-throttling',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-renderer-backgrounding',
-                '--disable-extensions',
-                '--disable-default-apps',
-                '--disable-sync',
-                '--disable-translate',
-                '--memory-pressure-off',
-                '--max_old_space_size=2048',
+                '--disable-gpu',
                 '--disable-web-security',
                 '--disable-features=VizDisplayCompositor',
-                '--disable-ipc-flooding-protection',
-                '--user-data-dir=/tmp/chrome-user-data',
-                '--disable-background-networking',
-                '--disable-default-apps',
                 '--disable-extensions',
-                '--disable-component-update',
-                '--disable-domain-reliability',
-                '--disable-background-mode',
-                '--disable-client-side-phishing-detection'
+                '--disable-plugins',
+                '--disable-default-apps'
             ],
-            defaultViewport: {
-                width: 1280,
-                height: 720,
-                deviceScaleFactor: 1,
-                isMobile: false,
-                hasTouch: false,
-                isLandscape: true
-            },
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
-            timeout: 120000,
-            handleSIGINT: false,
-            handleSIGTERM: false,
-            handleSIGHUP: false,
-            devtools: false,
-            pipe: true
+            executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         }
     });
     
     // Ready event
-    salon.client.on('ready', () => {
-        console.log(`✅ [${salon.name}] WhatsApp Client is ready!`);
-        salon.isReady = true;
-        salon.clientInfo = salon.client.info;
-        salon.qrCodeData = null;
+    whatsappClient.on('ready', () => {
+        console.log(`✅ [${SALON_NAME}] WhatsApp Bot is ready!`);
+        isReady = true;
+        clientInfo = whatsappClient.info;
+        qrCodeData = null;
         
-        const phoneNumber = salon.clientInfo?.wid?.user || 'Unknown';
-        updateConnectionStatus(salonId, true, phoneNumber);
+        const phoneNumber = clientInfo?.wid?.user || 'Unknown';
+        updateConnectionStatus(true, phoneNumber);
     });
     
     // Disconnected event
-    salon.client.on('disconnected', (reason) => {
-        console.log(`❌ [${salon.name}] WhatsApp Client disconnected:`, reason);
-        salon.isReady = false;
-        salon.clientInfo = null;
-        updateConnectionStatus(salonId, false);
+    whatsappClient.on('disconnected', (reason) => {
+        console.log(`❌ [${SALON_NAME}] WhatsApp Bot disconnected:`, reason);
+        isReady = false;
+        clientInfo = null;
+        updateConnectionStatus(false);
         
         // Auto-retry connection after 30 seconds
         setTimeout(() => {
-            console.log(`🔄 [${salon.name}] Attempting to reconnect...`);
+            console.log(`🔄 [${SALON_NAME}] Attempting to reconnect...`);
             try {
-                salon.client.initialize();
+                whatsappClient.initialize();
             } catch (error) {
-                console.error(`❌ [${salon.name}] Reconnection failed:`, error.message);
+                console.error(`❌ [${SALON_NAME}] Reconnection failed:`, error.message);
             }
         }, 30000);
     });
     
     // Error event
-    salon.client.on('auth_failure', (msg) => {
-        console.error(`❌ [${salon.name}] Authentication failure:`, msg);
-        salon.isReady = false;
-        updateConnectionStatus(salonId, false);
+    whatsappClient.on('auth_failure', (msg) => {
+        console.error(`❌ [${SALON_NAME}] Authentication failure:`, msg);
+        isReady = false;
+        updateConnectionStatus(false);
     });
     
     // QR Code event
-    salon.client.on('qr', (qr) => {
-        console.log(`📱 [${salon.name}] QR Code generated`);
-        salon.qrCodeData = qr;
-        salon.connectionStatus.qr_generated_count += 1;
-        saveConnectionStatus(salonId);
+    whatsappClient.on('qr', (qr) => {
+        console.log(`📱 [${SALON_NAME}] QR Code generated`);
+        qrCodeData = qr;
+        connectionStatus.qr_generated_count += 1;
+        saveConnectionStatus();
         
-        // Generate QR code image with higher error correction
-        qrcode.toFile(`${salonId}_qr.png`, qr, {
-            errorCorrectionLevel: 'H',
-            type: 'png',
-            quality: 0.92,
-            margin: 1,
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-            },
-            width: 512
-        }, (err) => {
+        // Generate QR code image
+        qrcode.toFile('qr.png', qr, (err) => {
             if (err) {
-                console.error(`❌ [${salon.name}] Error generating QR code image:`, err);
+                console.error(`❌ [${SALON_NAME}] Error generating QR code image:`, err);
             } else {
-                console.log(`✅ [${salon.name}] QR code image saved as ${salonId}_qr.png`);
+                console.log(`✅ [${SALON_NAME}] QR code image saved as qr.png`);
             }
         });
-        
-        // Log QR generation for debugging
-        console.log(`📊 [${salon.name}] QR Stats - Generated: ${salon.connectionStatus.qr_generated_count} times`);
     });
     
     // Message received event
-    salon.client.on('message', async (message) => {
-        console.log(`📨 [${salon.name}] Received message:`, message.body);
+    whatsappClient.on('message', async (message) => {
+        console.log(`📨 [${SALON_NAME}] Received message:`, message.body);
         console.log(`📱 From phone: ${message.from}`);
         
         // Skip if message is from status broadcast or groups
         if (message.isStatus || message.from.includes('@g.us')) {
-            console.log(`⏭️ [${salon.name}] Skipping status/group message`);
+            console.log(`⏭️ [${SALON_NAME}] Skipping status/group message`);
             return;
         }
         
@@ -290,12 +190,11 @@ function initializeSalon(salonId) {
                 author: message.author || message.from
             };
             
-            console.log(`📋 [${salon.name}] Message details:`, JSON.stringify(messageData, null, 2));
+            console.log(`📋 [${SALON_NAME}] Message details:`, JSON.stringify(messageData, null, 2));
             
             // Send to backend webhook
-            const webhookPath = `/webhook/whatsapp/${salonId}`;
-            const backendUrl = `${BACKEND_URL}${webhookPath}`;
-            console.log(`🔗 [${salon.name}] Backend URL: ${backendUrl}`);
+            const backendUrl = `${BACKEND_URL}/webhook/whatsapp`;
+            console.log(`🔗 [${SALON_NAME}] Backend URL: ${backendUrl}`);
             
             const response = await axios.post(backendUrl, messageData, {
                 headers: {
@@ -304,677 +203,329 @@ function initializeSalon(salonId) {
                 timeout: 10000
             });
             
-            console.log(`📊 [${salon.name}] Backend response status: ${response.status}`);
+            console.log(`📊 [${SALON_NAME}] Backend response status: ${response.status}`);
             
             if (response.data && response.data.reply) {
-                console.log(`✅ [${salon.name}] Message forwarded to backend successfully`);
+                console.log(`✅ [${SALON_NAME}] Message forwarded to backend successfully`);
                 
                 // Send reply if provided
                 const replyText = response.data.reply;
                 if (replyText && replyText.trim()) {
-                    console.log(`📤 [${salon.name}] Sending reply to ${message.from}: ${replyText}`);
+                    console.log(`📤 [${SALON_NAME}] Sending reply to ${message.from}: ${replyText}`);
                     
-                    const sentMessage = await salon.client.sendMessage(message.from, replyText);
-                    console.log(`✅ [${salon.name}] Message sent successfully: ${sentMessage.id._serialized}`);
+                    const sentMessage = await whatsappClient.sendMessage(message.from, replyText);
+                    console.log(`✅ [${SALON_NAME}] Message sent successfully: ${sentMessage.id._serialized}`);
                 } else {
-                    console.log(`ℹ️ [${salon.name}] No reply text provided by backend`);
+                    console.log(`ℹ️ [${SALON_NAME}] No reply text provided by backend`);
                 }
             } else {
-                console.log(`ℹ️ [${salon.name}] No reply needed from backend`);
+                console.log(`ℹ️ [${SALON_NAME}] No reply needed from backend`);
             }
             
         } catch (error) {
-            console.error(`❌ [${salon.name}] Error processing message:`, error.message);
+            console.error(`❌ [${SALON_NAME}] Error processing message:`, error.message);
             
             // Send error message to user
             try {
-                await salon.client.sendMessage(message.from, "😔 Sorry, we're experiencing technical difficulties. Please try again later or contact us directly.");
+                await whatsappClient.sendMessage(message.from, "😔 Sorry, we're experiencing technical difficulties. Please try again later or contact us directly.");
             } catch (sendError) {
-                console.error(`❌ [${salon.name}] Error sending error message:`, sendError);
+                console.error(`❌ [${SALON_NAME}] Error sending error message:`, sendError);
             }
         }
     });
     
-    // Setup Express routes for this salon
-    setupSalonRoutes(salonId);
-    
-    // Initialize WhatsApp client with conservative retry for Railway
-    async function initializeClientWithRetry(retryCount = 0) {
-        const maxRetries = 2; // Reduced retries to avoid resource exhaustion
+    // Initialize WhatsApp client with error handling
+    try {
+        console.log(`🔄 [${SALON_NAME}] Initializing WhatsApp client...`);
+        whatsappClient.initialize().catch((error) => {
+            console.error(`❌ [${SALON_NAME}] WhatsApp initialization error:`, error.message);
+            isReady = false;
+            updateConnectionStatus(false);
+            
+            // Retry after 10 seconds
+            setTimeout(() => {
+                console.log(`🔄 [${SALON_NAME}] Retrying initialization...`);
+                initializeWhatsApp();
+            }, 10000);
+        });
+    } catch (error) {
+        console.error(`❌ [${SALON_NAME}] Error initializing WhatsApp client:`, error.message);
+        isReady = false;
+        updateConnectionStatus(false);
         
-        try {
-            console.log(`🔄 [${salon.name}] Initializing WhatsApp client (attempt ${retryCount + 1}/${maxRetries + 1})...`);
-            
-            // Clean up any existing Chrome processes and sessions
-            if (retryCount > 0) {
-                console.log(`🧹 [${salon.name}] Cleaning up previous attempt...`);
-                try {
-                    // Kill any hanging Chrome processes
-                    require('child_process').exec('pkill -f chrome', () => {});
-                    
-                    // Clean up temp directories
-                    require('child_process').exec('rm -rf /tmp/chrome-user-data*', () => {});
-                    
-                    // Wait longer for cleanup in Railway
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                } catch (cleanupError) {
-                    console.log(`ℹ️ [${salon.name}] Cleanup completed`);
-                }
-            }
-            
-            // Initialize the client
-            await salon.client.initialize();
-            console.log(`✅ [${salon.name}] WhatsApp client initialization started successfully`);
-            
-        } catch (error) {
-            console.error(`❌ [${salon.name}] Error initializing WhatsApp client (attempt ${retryCount + 1}):`, error.message);
-            salon.isReady = false;
-            updateConnectionStatus(salonId, false);
-            
-            // If it's a session/connection error, clean up session files
-            if (error.message.includes('Session') || error.message.includes('Target closed') || error.message.includes('Protocol error')) {
-                console.log(`🗑️ [${salon.name}] Cleaning up session files due to connection error...`);
-                try {
-                    const sessionPath = `.wwebjs_auth/session-${salon.clientId}`;
-                    if (require('fs').existsSync(sessionPath)) {
-                        require('fs').rmSync(sessionPath, { recursive: true });
-                        console.log(`✅ [${salon.name}] Session files cleaned up`);
-                    }
-                } catch (sessionError) {
-                    console.log(`ℹ️ [${salon.name}] Session cleanup completed`);
-                }
-            }
-            
-            if (retryCount < maxRetries) {
-                const retryDelay = (retryCount + 1) * 60000; // 60s, 120s - longer delays for Railway
-                console.log(`🔄 [${salon.name}] Retrying in ${retryDelay/1000} seconds...`);
-                
-                setTimeout(() => {
-                    initializeClientWithRetry(retryCount + 1);
-                }, retryDelay);
-            } else {
-                console.error(`❌ [${salon.name}] All initialization attempts failed. Will retry in 15 minutes.`);
-                // Set a longer retry after all attempts fail
-                setTimeout(() => {
-                    console.log(`🔄 [${salon.name}] Final retry attempt after 15 minutes...`);
-                    initializeClientWithRetry(0);
-                }, 900000); // 15 minutes
-            }
-        }
+        // Retry after 10 seconds
+        setTimeout(() => {
+            console.log(`🔄 [${SALON_NAME}] Retrying initialization...`);
+            initializeWhatsApp();
+        }, 10000);
     }
-    
-    // Start initialization
-    initializeClientWithRetry();
 }
 
-// Setup Express routes for a salon
-function setupSalonRoutes(salonId) {
-    const salon = salonData[salonId];
-    
-    salon.app.use(express.json());
-    
-    // Health check
-    salon.app.get('/health', (req, res) => {
-        res.json({
-            status: salon.isReady ? 'ready' : 'not_ready',
-            salon: salon.name,
-            salon_id: salonId,
-            port: salon.port,
-            timestamp: new Date().toISOString(),
-            client_info: salon.clientInfo,
-            connection_status: salon.connectionStatus
-        });
+// Express routes
+app.get('/health', (req, res) => {
+    res.json({
+        status: isReady ? 'ready' : 'not_ready',
+        salon: SALON_NAME,
+        port: PORT,
+        timestamp: new Date().toISOString(),
+        client_info: clientInfo,
+        connection_status: connectionStatus
     });
-    
-    // Service info
-    salon.app.get('/info', (req, res) => {
-        res.json({
-            service: `${salon.name} WhatsApp Service`,
-            salon_id: salonId,
-            port: salon.port,
-            status: salon.isReady ? 'ready' : 'initializing',
-            qr_available: !!salon.qrCodeData,
-            backend_url: BACKEND_URL,
-            webhook_path: `/webhook/whatsapp/${salonId}`,
-            connection_status: salon.connectionStatus
-        });
+});
+
+app.get('/info', (req, res) => {
+    res.json({
+        service: `${SALON_NAME} WhatsApp Bot`,
+        port: PORT,
+        status: isReady ? 'ready' : 'initializing',
+        qr_available: !!qrCodeData,
+        backend_url: BACKEND_URL,
+        webhook_path: '/webhook/whatsapp',
+        connection_status: connectionStatus
     });
-    
-    // Connection status
-    salon.app.get('/connection-status', (req, res) => {
-        res.json({
-            ...salon.connectionStatus,
-            current_status: salon.isReady ? 'connected' : 'disconnected',
-            qr_needed: !salon.isReady && !salon.connectionStatus.is_connected
-        });
+});
+
+app.get('/connection-status', (req, res) => {
+    res.json({
+        ...connectionStatus,
+        current_status: isReady ? 'connected' : 'disconnected',
+        qr_needed: !isReady && !connectionStatus.is_connected
     });
-    
-    // Reset connection
-    salon.app.post('/reset-connection', (req, res) => {
-        try {
-            // Reset connection status
-            salon.connectionStatus.is_connected = false;
-            salon.connectionStatus.phone_number = null;
-            salon.connectionStatus.connected_at = null;
-            salon.connectionStatus.qr_generated_count = 0;
-            saveConnectionStatus(salonId);
-            
-            // Remove session files to force re-authentication
-            const sessionPath = `.wwebjs_auth/session-${salon.clientId}`;
-            if (fs.existsSync(sessionPath)) {
-                fs.rmSync(sessionPath, { recursive: true });
-                console.log(`🗑️ [${salon.name}] Removed session files`);
-            }
-            
-            res.json({
-                success: true,
-                message: `Connection reset for ${salon.name}. Restart the service to generate new QR code.`
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: error.message
-            });
+});
+
+app.post('/reset-connection', (req, res) => {
+    try {
+        // Reset connection status
+        connectionStatus.is_connected = false;
+        connectionStatus.phone_number = null;
+        connectionStatus.connected_at = null;
+        connectionStatus.qr_generated_count = 0;
+        saveConnectionStatus();
+        
+        // Remove session files to force re-authentication
+        const sessionPath = '.wwebjs_auth/session-salon-bot';
+        if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true });
+            console.log(`🗑️ [${SALON_NAME}] Removed session files`);
         }
-    });
-    
-    // QR code page
-    salon.app.get('/qr', (req, res) => {
-        // Check if already connected
-        if (salon.connectionStatus.is_connected && salon.isReady) {
-            const connectedSince = new Date(salon.connectionStatus.connected_at);
-            const timeSinceConnection = Date.now() - connectedSince.getTime();
-            const hoursSinceConnection = Math.floor(timeSinceConnection / (1000 * 60 * 60));
-            
-            res.send(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>${salon.name} - Already Connected</title>
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <style>
-                        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #e8f5e8; }
-                        .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; }
-                        .success { color: #25D366; }
-                        .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-                        .connection-info { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: left; }
-                        .reset-btn { background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-                        .reset-btn:hover { background: #ff5252; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="salon-info">
-                            <h2>🏢 ${salon.name}</h2>
-                            <p>📍 Salon ID: ${salonId}</p>
-                        </div>
-                        <h1 class="success">✅ WhatsApp Already Connected!</h1>
-                        <p>This salon's WhatsApp is already connected and ready to receive messages.</p>
-                        
-                        <div class="connection-info">
-                            <strong>📋 Connection Details:</strong><br>
-                            📱 Phone: ${salon.connectionStatus.phone_number}<br>
-                            🕒 Connected: ${connectedSince.toLocaleString()}<br>
-                            ⏰ Online for: ${hoursSinceConnection} hours<br>
-                            🔢 Total connections: ${salon.connectionStatus.connection_count}
-                        </div>
-                        
-                        <p>✨ <strong>Your bot is ready!</strong> Customers can now send messages to your WhatsApp number.</p>
-                        
-                        <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 5px;">
-                            <strong>🔄 Need to reconnect?</strong><br>
-                            <p>Only use this if you're having connection issues:</p>
-                            <button class="reset-btn" onclick="resetConnection()">🔄 Reset Connection</button>
-                        </div>
+        
+        res.json({
+            success: true,
+            message: `Connection reset for ${SALON_NAME}. Restart the service to generate new QR code.`
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// QR code page
+app.get('/qr', (req, res) => {
+    // Check if already connected
+    if (connectionStatus.is_connected && isReady) {
+        const connectedSince = new Date(connectionStatus.connected_at);
+        const timeSinceConnection = Date.now() - connectedSince.getTime();
+        const hoursSinceConnection = Math.floor(timeSinceConnection / (1000 * 60 * 60));
+        
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${SALON_NAME} - Already Connected</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #e8f5e8; }
+                    .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; }
+                    .success { color: #25D366; }
+                    .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                    .connection-info { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: left; }
+                    .reset-btn { background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+                    .reset-btn:hover { background: #ff5252; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="salon-info">
+                        <h2>🏢 ${SALON_NAME}</h2>
+                    </div>
+                    <h1 class="success">✅ WhatsApp Already Connected!</h1>
+                    <p>Your salon's WhatsApp bot is already connected and ready to receive messages.</p>
+                    
+                    <div class="connection-info">
+                        <strong>📋 Connection Details:</strong><br>
+                        📱 Phone: ${connectionStatus.phone_number}<br>
+                        🕒 Connected: ${connectedSince.toLocaleString()}<br>
+                        ⏰ Online for: ${hoursSinceConnection} hours<br>
+                        🔢 Total connections: ${connectionStatus.connection_count}
                     </div>
                     
-                    <script>
-                        async function resetConnection() {
-                            if (confirm('Are you sure you want to reset the connection? This will require scanning the QR code again.')) {
-                                try {
-                                    const response = await fetch('/reset-connection', { method: 'POST' });
-                                    const result = await response.json();
-                                    alert(result.message);
-                                    if (result.success) {
-                                        window.location.reload();
-                                    }
-                                } catch (error) {
-                                    alert('Error resetting connection: ' + error.message);
+                    <p>✨ <strong>Your bot is ready!</strong> Customers can now send messages to your WhatsApp number.</p>
+                    
+                    <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                        <strong>🔄 Need to reconnect?</strong><br>
+                        <p>Only use this if you're having connection issues:</p>
+                        <button class="reset-btn" onclick="resetConnection()">🔄 Reset Connection</button>
+                    </div>
+                </div>
+                
+                <script>
+                    async function resetConnection() {
+                        if (confirm('Are you sure you want to reset the connection? This will require scanning the QR code again.')) {
+                            try {
+                                const response = await fetch('/reset-connection', { method: 'POST' });
+                                const result = await response.json();
+                                alert(result.message);
+                                if (result.success) {
+                                    window.location.reload();
                                 }
+                            } catch (error) {
+                                alert('Error resetting connection: ' + error.message);
                             }
                         }
-                    </script>
-                </body>
-                </html>
-            `);
-            return;
-        }
-        
-        // Show QR code if not connected
-        if (salon.qrCodeData) {
-            // Check if this is a static fallback QR
-            const isStaticFallback = salon.qrCodeData.includes('Since Chrome cannot run in Railway');
-            
-            if (isStaticFallback) {
-                // Show Railway-specific setup instructions
-                res.send(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>${salon.name} - Railway Setup Required</title>
-                        <meta name="viewport" content="width=device-width, initial-scale=1">
-                        <style>
-                            body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #fff3cd; }
-                            .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; }
-                            .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-                            .warning { background: #fff3cd; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107; }
-                            .solutions { background: #d4edda; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: left; }
-                            .solution-item { margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="container">
-                            <div class="salon-info">
-                                <h2>🏢 ${salon.name}</h2>
-                                <p>📍 Salon ID: ${salonId}</p>
-                                <p>🚀 Railway Deployment</p>
-                            </div>
-                            
-                            <div class="warning">
-                                <h2>⚠️ Chrome Cannot Run in Railway</h2>
-                                <p>Railway's container environment doesn't support Chrome/Puppeteer for WhatsApp Web.js. This is a known limitation.</p>
-                            </div>
-                            
-                            <div class="solutions">
-                                <h3>🔧 Solutions for WhatsApp Integration:</h3>
-                                
-                                <div class="solution-item">
-                                    <h4>🖥️ Option 1: Local Development</h4>
-                                    <p>Run this project locally on your computer to get real WhatsApp QR codes that work perfectly.</p>
-                                    <code>npm start</code>
-                                </div>
-                                
-                                <div class="solution-item">
-                                    <h4>📱 Option 2: WhatsApp Business API</h4>
-                                    <p>Use WhatsApp's official Business API instead of WhatsApp Web.js for production deployments.</p>
-                                </div>
-                                
-                                <div class="solution-item">
-                                    <h4>☁️ Option 3: Different Platform</h4>
-                                    <p>Deploy to platforms that support Chrome like Heroku, DigitalOcean, or VPS servers.</p>
-                                </div>
-                                
-                                <div class="solution-item">
-                                    <h4>🤝 Option 4: Contact Support</h4>
-                                    <p>Get help setting up a production-ready WhatsApp integration for your salon.</p>
-                                </div>
-                            </div>
-                            
-                            <p><strong>📋 Current Status:</strong> Backend API is running and ready. Only WhatsApp connection needs alternative setup.</p>
-                        </div>
-                    </body>
-                    </html>
-                `);
-            } else {
-                // Show normal QR code page
-                res.send(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <title>${salon.name} - WhatsApp QR Code</title>
-                        <meta name="viewport" content="width=device-width, initial-scale=1">
-                        <style>
-                            body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f0f8ff; }
-                            .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; }
-                            .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-                            .qr-container { margin: 20px 0; }
-                            .instructions { background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; text-align: left; }
-                            .auto-detect { background: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0; }
-                            .refresh-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-                            .refresh-btn:hover { background: #0056b3; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="container">
-                            <div class="salon-info">
-                                <h2>🏢 ${salon.name}</h2>
-                                <p>📍 Salon ID: ${salonId}</p>
-                                <p>📱 Port: ${salon.port}</p>
-                            </div>
-                            
-                            <h1>📱 WhatsApp QR Code</h1>
-                            
-                            <div class="auto-detect">
-                                <h3>🎯 Automatic Salon Detection Active!</h3>
-                                <p>✨ Once you scan this QR code and connect WhatsApp, customers can simply send <strong>"hi"</strong> and will automatically get ${salon.name}'s services and barbers!</p>
-                                <p>🔄 No need for special commands - the system will remember this is ${salon.name}'s WhatsApp number.</p>
-                            </div>
-                            
-                            <div class="qr-container">
-                                <img src="/qr-image" alt="WhatsApp QR Code" style="max-width: 300px; height: auto; border: 2px solid #25D366; border-radius: 10px;" onerror="this.style.display='none'; document.getElementById('qr-error').style.display='block';">
-                                <div id="qr-error" style="display: none; color: #dc3545; margin-top: 15px;">
-                                    <p>🔄 Generating QR code...</p>
-                                    <p>Please refresh in a few seconds.</p>
-                                </div>
-                            </div>
-                            
-                            <div class="instructions">
-                                <h3>📋 How to Connect:</h3>
-                                <ol>
-                                    <li>🔍 Open WhatsApp on your phone</li>
-                                    <li>⚙️ Go to Settings → Linked Devices</li>
-                                    <li>➕ Tap "Link a Device"</li>
-                                    <li>📷 Scan the QR code above</li>
-                                    <li>✅ Wait for connection confirmation</li>
-                                </ol>
-                            </div>
-                            
-                            <button class="refresh-btn" onclick="window.location.reload()">🔄 Refresh QR Code</button>
-                            
-                            <p style="margin-top: 20px; color: #666; font-size: 14px;">
-                                🔄 This page will auto-refresh every 30 seconds to check connection status
-                            </p>
-                        </div>
-                        
-                        <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-                        <script>
-                            // Auto-refresh every 30 seconds to check connection status
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 30000);
-                        </script>
-                    </body>
-                    </html>
-                `);
-            }
-        } else {
-            res.send(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>${salon.name} - Initializing</title>
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <style>
-                        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f8ff; }
-                        .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-                        .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-                        .loading { color: #007bff; }
-                        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
-                        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="salon-info">
-                            <h2>🏢 ${salon.name}</h2>
-                            <p>📍 Salon ID: ${salonId}</p>
-                        </div>
-                        <h1 class="loading">🔄 Initializing WhatsApp...</h1>
-                        <div class="spinner"></div>
-                        <p>Please wait while we generate your QR code...</p>
-                        <p>This page will automatically refresh when ready.</p>
+                    }
+                </script>
+            </body>
+            </html>
+        `);
+        return;
+    }
+    
+    // Show QR code if not connected
+    if (qrCodeData) {
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${SALON_NAME} - WhatsApp QR Code</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f0f8ff; }
+                    .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; }
+                    .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                    .qr-container { margin: 20px 0; }
+                    .instructions { background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; text-align: left; }
+                    .refresh-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+                    .refresh-btn:hover { background: #0056b3; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="salon-info">
+                        <h2>🏢 ${SALON_NAME}</h2>
+                        <p>📱 WhatsApp Booking Bot</p>
                     </div>
                     
-                    <script>
-                        // Auto-refresh every 5 seconds until QR code is ready
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 5000);
-                    </script>
-                </body>
-                </html>
-            `);
-        }
-    });
-    
-    // QR code image endpoint
-    salon.app.get('/qr-image', (req, res) => {
-        const qrImagePath = `${salonId}_qr.png`;
-        if (fs.existsSync(qrImagePath)) {
-            res.sendFile(path.resolve(qrImagePath));
-        } else {
-            res.status(404).json({ error: 'QR code image not found' });
-        }
-    });
-    
-    // Start the Express server for this salon
-    salon.app.listen(salon.port, () => {
-        console.log(`🚀 [${salon.name}] WhatsApp service running on port ${salon.port}`);
-        console.log(`🔗 [${salon.name}] QR Code URL: http://localhost:${salon.port}/qr`);
-    });
-}
-
-// Initialize only the active salon to conserve Railway resources
-async function initializeActiveSalon() {
-    console.log('🏢 Starting Single-Salon WhatsApp Service for Railway');
-    console.log(`🎯 Active Salon: ${ACTIVE_SALON}`);
-    
-    // Validate active salon exists
-    if (!SALONS[ACTIVE_SALON]) {
-        console.error(`❌ Invalid ACTIVE_SALON: ${ACTIVE_SALON}. Valid options: ${Object.keys(SALONS).join(', ')}`);
-        process.exit(1);
-    }
-    
-    const salon = SALONS[ACTIVE_SALON];
-    console.log(`\n🔄 Initializing ${salon.name}...`);
-    
-    // Choose initialization method based on environment
-    if (QR_ONLY_MODE) {
-        console.log(`🔧 Using QR-Only mode for Railway compatibility`);
-        
-        // Setup Express routes first
-        setupSalonRoutes(ACTIVE_SALON);
-        
-        // Initialize in QR-only mode
-        initializeSalonQROnly(ACTIVE_SALON);
+                    <h1>📱 Scan QR Code to Connect</h1>
+                    
+                    <div class="qr-container">
+                        <img src="/qr-image" alt="WhatsApp QR Code" style="max-width: 300px; height: auto; border: 2px solid #25D366; border-radius: 10px;" onerror="this.style.display='none'; document.getElementById('qr-error').style.display='block';">
+                        <div id="qr-error" style="display: none; color: #dc3545; margin-top: 15px;">
+                            <p>🔄 Generating QR code...</p>
+                            <p>Please refresh in a few seconds.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="instructions">
+                        <h3>📋 How to Connect:</h3>
+                        <ol>
+                            <li>🔍 Open WhatsApp on your phone</li>
+                            <li>⚙️ Go to Settings → Linked Devices</li>
+                            <li>➕ Tap "Link a Device"</li>
+                            <li>📷 Scan the QR code above</li>
+                            <li>✅ Wait for connection confirmation</li>
+                        </ol>
+                        <p><strong>🎉 Once connected, customers can send "hi" to start booking!</strong></p>
+                    </div>
+                    
+                    <button class="refresh-btn" onclick="window.location.reload()">🔄 Refresh QR Code</button>
+                    
+                    <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                        🔄 This page will auto-refresh every 30 seconds to check connection status
+                    </p>
+                </div>
+                
+                <script>
+                    // Auto-refresh every 30 seconds to check connection status
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 30000);
+                </script>
+            </body>
+            </html>
+        `);
     } else {
-        console.log(`🔧 Using full WhatsApp client mode for local development`);
-        // Initialize the full salon with persistent client
-        initializeSalon(ACTIVE_SALON);
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${SALON_NAME} - Initializing</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f8ff; }
+                    .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                    .salon-info { background: #e8f5e8; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                    .loading { color: #007bff; }
+                    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="salon-info">
+                        <h2>🏢 ${SALON_NAME}</h2>
+                    </div>
+                    <h1 class="loading">🔄 Initializing WhatsApp Bot...</h1>
+                    <div class="spinner"></div>
+                    <p>Please wait while we generate your QR code...</p>
+                    <p>This page will automatically refresh when ready.</p>
+                </div>
+                
+                <script>
+                    // Auto-refresh every 5 seconds until QR code is ready
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 5000);
+                </script>
+            </body>
+            </html>
+        `);
     }
-    
-    console.log('✅ Active salon initialization started!');
-    console.log(`\n📋 Active Salon:`);
-    console.log(`  🏢 ${salon.name} (${ACTIVE_SALON}): http://localhost:${salon.port}/qr`);
-    console.log(`\n💡 To switch salons, set ACTIVE_SALON environment variable to: ${Object.keys(SALONS).join(', ')}`);
-    
-    if (QR_ONLY_MODE) {
-        console.log(`\n🔧 QR-Only Mode: Chrome sessions will be temporary to avoid Railway resource conflicts`);
-    }
-}
+});
 
-// QR-Only initialization for Railway compatibility
-async function initializeSalonQROnly(salonId) {
-    const salon = salonData[salonId];
-    
-    console.log(`🔧 [${salon.name}] Initializing in QR-Only mode for Railway...`);
-    
-    // Load connection status
-    loadConnectionStatus(salonId);
-    
-    // Create a temporary client just for QR generation
-    let tempClient = null;
-    
-    try {
-        console.log(`📱 [${salon.name}] Creating temporary WhatsApp client for QR generation...`);
-        
-        tempClient = new Client({
-            authStrategy: new LocalAuth({ 
-                clientId: salon.clientId,
-                dataPath: `./.wwebjs_auth/session-${salon.clientId}`
-            }),
-            puppeteer: {
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--no-first-run',
-                    '--single-process',
-                    '--disable-web-security',
-                    '--disable-extensions',
-                    '--disable-default-apps',
-                    '--memory-pressure-off',
-                    '--max_old_space_size=1024',
-                    '--user-data-dir=/tmp/chrome-qr-temp',
-                    '--disable-background-networking',
-                    '--disable-background-mode'
-                ],
-                defaultViewport: {
-                    width: 1024,
-                    height: 768
-                },
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
-                timeout: 60000
-            }
-        });
-        
-        // Set up QR event listener
-        tempClient.on('qr', (qr) => {
-            console.log(`📱 [${salon.name}] QR Code generated in QR-Only mode`);
-            salon.qrCodeData = qr;
-            salon.connectionStatus.qr_generated_count += 1;
-            saveConnectionStatus(salonId);
-            
-            // Generate QR code image
-            qrcode.toFile(`${salonId}_qr.png`, qr, {
-                errorCorrectionLevel: 'H',
-                type: 'png',
-                quality: 0.92,
-                margin: 1,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                },
-                width: 512
-            }, (err) => {
-                if (err) {
-                    console.error(`❌ [${salon.name}] Error generating QR code image:`, err);
-                } else {
-                    console.log(`✅ [${salon.name}] QR code image saved as ${salonId}_qr.png`);
-                }
-            });
-            
-            // Destroy the temporary client after QR generation
-            setTimeout(async () => {
-                try {
-                    await tempClient.destroy();
-                    console.log(`🗑️ [${salon.name}] Temporary client destroyed after QR generation`);
-                } catch (destroyError) {
-                    console.log(`ℹ️ [${salon.name}] Temporary client cleanup completed`);
-                }
-            }, 5000);
-        });
-        
-        // Handle ready event (connection successful)
-        tempClient.on('ready', () => {
-            console.log(`✅ [${salon.name}] WhatsApp connected in QR-Only mode!`);
-            salon.isReady = true;
-            salon.clientInfo = tempClient.info;
-            salon.qrCodeData = null;
-            
-            const phoneNumber = salon.clientInfo?.wid?.user || 'Unknown';
-            updateConnectionStatus(salonId, true, phoneNumber);
-            
-            // Keep the client alive if connected
-            salon.client = tempClient;
-        });
-        
-        // Handle disconnection
-        tempClient.on('disconnected', (reason) => {
-            console.log(`❌ [${salon.name}] WhatsApp disconnected in QR-Only mode:`, reason);
-            salon.isReady = false;
-            salon.clientInfo = null;
-            updateConnectionStatus(salonId, false);
-        });
-        
-        // Initialize the temporary client
-        console.log(`🔄 [${salon.name}] Starting QR generation...`);
-        await tempClient.initialize();
-        
-    } catch (error) {
-        console.error(`❌ [${salon.name}] QR-Only mode error:`, error.message);
-        
-        // Clean up on error
-        if (tempClient) {
-            try {
-                await tempClient.destroy();
-            } catch (cleanupError) {
-                console.log(`ℹ️ [${salon.name}] Cleanup completed`);
-            }
-        }
-        
-        // Check if this is a Chrome failure and fall back to static QR
-        if (error.message.includes('Session closed') || error.message.includes('Protocol error') || error.message.includes('Target closed')) {
-            console.log(`🔧 [${salon.name}] Chrome failure detected - falling back to static QR`);
-            generateStaticQRFallback(salonId);
-        } else {
-            // Retry after delay for other errors
-            setTimeout(() => {
-                console.log(`🔄 [${salon.name}] Retrying QR generation in 2 minutes...`);
-                initializeSalonQROnly(salonId);
-            }, 120000);
-        }
+// QR code image endpoint
+app.get('/qr-image', (req, res) => {
+    const qrImagePath = 'qr.png';
+    if (fs.existsSync(qrImagePath)) {
+        res.sendFile(path.resolve(qrImagePath));
+    } else {
+        res.status(404).json({ error: 'QR code image not found' });
     }
-}
+});
 
-// Static QR fallback for Railway when Chrome fails
-function generateStaticQRFallback(salonId) {
-    const salon = salonData[salonId];
-    
-    console.log(`🔧 [${salon.name}] Chrome failed - using static QR fallback for Railway`);
-    
-    // Generate a placeholder QR code with setup instructions
-    const instructionText = `WhatsApp Setup for ${salon.name}\n\nSince Chrome cannot run in Railway, please:\n1. Run this locally to get real QR\n2. Or use WhatsApp Business API\n3. Or contact support for setup\n\nSalon: ${salon.name}\nID: ${salonId}`;
-    
-    // Generate static instruction QR
-    qrcode.toFile(`${salonId}_qr.png`, instructionText, {
-        errorCorrectionLevel: 'H',
-        type: 'png',
-        quality: 0.92,
-        margin: 1,
-        color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-        },
-        width: 512
-    }, (err) => {
-        if (err) {
-            console.error(`❌ [${salon.name}] Error generating static QR:`, err);
-        } else {
-            console.log(`✅ [${salon.name}] Static instruction QR generated`);
-        }
-    });
-    
-    // Set static QR data
-    salon.qrCodeData = instructionText;
-    salon.connectionStatus.qr_generated_count += 1;
-    saveConnectionStatus(salonId);
-    
-    console.log(`📋 [${salon.name}] Static QR fallback active - manual setup required`);
-}
+// Start the Express server
+app.listen(PORT, () => {
+    console.log(`🚀 [${SALON_NAME}] WhatsApp Bot running on port ${PORT}`);
+    console.log(`🔗 [${SALON_NAME}] QR Code URL: http://localhost:${PORT}/qr`);
+});
+
+// Initialize WhatsApp
+initializeWhatsApp();
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-    console.log('\n🛑 Shutting down all WhatsApp services...');
+    console.log('\n🛑 Shutting down WhatsApp Bot...');
     
-    const shutdownPromises = Object.keys(salonData).map(async (salonId) => {
-        const salon = salonData[salonId];
-        if (salon.client) {
-            try {
-                await salon.client.destroy();
-                console.log(`✅ [${salon.name}] WhatsApp client shutdown complete`);
-            } catch (error) {
-                console.error(`❌ [${salon.name}] Error during shutdown:`, error.message);
-            }
+    if (whatsappClient) {
+        try {
+            await whatsappClient.destroy();
+            console.log(`✅ [${SALON_NAME}] WhatsApp client shutdown complete`);
+        } catch (error) {
+            console.error(`❌ [${SALON_NAME}] Error during shutdown:`, error.message);
         }
-    });
+    }
     
-    await Promise.all(shutdownPromises);
-    console.log('👋 All services shut down. Goodbye!');
+    console.log('👋 Bot shut down. Goodbye!');
     process.exit(0);
-});
-
-// Start the single-salon service
-initializeActiveSalon(); 
+}); 
