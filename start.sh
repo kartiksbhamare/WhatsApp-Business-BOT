@@ -33,7 +33,7 @@ sleep 3
 # Start WhatsApp service
 echo ""
 echo "📱 Starting WhatsApp Service..."
-node whatsapp-service-unified.js &
+node whatsapp-simple.js &
 WHATSAPP_PID=$!
 
 # Wait for services to start
