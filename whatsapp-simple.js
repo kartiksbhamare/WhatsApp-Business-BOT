@@ -23,26 +23,31 @@ console.log(`🔧 Initializing WhatsApp client...`);
 
 // Determine Chrome executable path based on environment
 function getChromeExecutablePath() {
-    // Check if running in Docker container
+    // Check if running in Docker container (prioritize this)
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
         console.log(`🐳 Using Docker Chrome path: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
         return process.env.PUPPETEER_EXECUTABLE_PATH;
     }
     
-    // Check for common Chrome paths
+    // Check for common Chrome paths (prioritize Linux for containers)
     const fs = require('fs');
     const chromePaths = [
-        '/usr/bin/google-chrome-stable',  // Linux
+        '/usr/bin/google-chrome-stable',  // Linux (Docker/Railway)
         '/usr/bin/google-chrome',         // Linux alternative
+        '/usr/bin/chromium-browser',      // Ubuntu/Debian alternative
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // macOS
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',    // Windows
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Windows 32-bit
     ];
     
+    console.log(`🔍 Searching for Chrome executable...`);
     for (const path of chromePaths) {
+        console.log(`  Checking: ${path}`);
         if (fs.existsSync(path)) {
-            console.log(`🔍 Found Chrome at: ${path}`);
+            console.log(`✅ Found Chrome at: ${path}`);
             return path;
+        } else {
+            console.log(`  ❌ Not found`);
         }
     }
     

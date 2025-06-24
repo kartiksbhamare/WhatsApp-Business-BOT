@@ -50,6 +50,8 @@ def initialize_firebase():
     try:
         import firebase_admin
         from firebase_admin import credentials, firestore
+        import base64
+        import tempfile
         
         # Check if already initialized
         try:
@@ -57,7 +59,39 @@ def initialize_firebase():
             logger.info("✅ Firebase Admin already initialized")
         except ValueError:
             # Not initialized, try to initialize
-            if os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
+            cred = None
+            
+            # Option A: Base64 encoded credentials (for Railway/cloud deployment)
+            if os.environ.get('FIREBASE_CREDENTIALS_BASE64'):
+                try:
+                    logger.info("🔧 Using base64 encoded credentials from environment")
+                    encoded_creds = os.environ.get('FIREBASE_CREDENTIALS_BASE64')
+                    decoded_creds = base64.b64decode(encoded_creds).decode('utf-8')
+                    cred_data = json.loads(decoded_creds)
+                    
+                    # Validate credentials
+                    if (cred_data.get('type') == 'service_account' and 
+                        'dummy' not in cred_data.get('private_key_id', '') and
+                        cred_data.get('project_id') == PROJECT_ID):
+                        
+                        # Create temporary file for credentials
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+                            json.dump(cred_data, temp_file)
+                            temp_file_path = temp_file.name
+                        
+                        cred = credentials.Certificate(temp_file_path)
+                        logger.info("✅ Base64 credentials decoded and loaded successfully")
+                        
+                        # Clean up temp file
+                        os.unlink(temp_file_path)
+                    else:
+                        logger.warning("⚠️ Base64 credentials contain dummy/invalid data")
+                        raise Exception("Invalid base64 credentials")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to decode base64 credentials: {str(e)}")
+            
+            # Option B: Service account file
+            elif os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
                 logger.info(f"📄 Using service account from {settings.FIREBASE_CREDENTIALS_PATH}")
                 # Check if the file contains valid JSON
                 try:
@@ -69,19 +103,25 @@ def initialize_firebase():
                         'dummy' not in cred_data.get('private_key_id', '') and
                         cred_data.get('project_id') == PROJECT_ID):
                         cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-                        firebase_admin.initialize_app(cred)
                     else:
                         logger.warning("⚠️ Service account file contains dummy/invalid credentials")
                         raise Exception("Invalid service account credentials")
                 except json.JSONDecodeError:
                     logger.warning("⚠️ Service account file is not valid JSON")
                     raise Exception("Invalid JSON in service account file")
+            
+            # Option C: Application default credentials
             else:
                 logger.info("🔧 Using application default credentials")
                 cred = credentials.ApplicationDefault()
+            
+            # Initialize Firebase
+            if cred:
                 firebase_admin.initialize_app(cred, {
                     'projectId': PROJECT_ID,
                 })
+            else:
+                raise Exception("No valid credentials found")
         
         _firebase_client = firestore.client()
         
@@ -128,7 +168,8 @@ def initialize_firebase():
     logger.info("🔄 The web API key provided doesn't have server-side permissions")
     logger.info("💡 To connect to Firebase, you need:")
     logger.info("   1. A valid service account key file (firebase-key.json), OR")
-    logger.info("   2. Google Cloud SDK configured with proper credentials")
+    logger.info("   2. Base64 encoded credentials in FIREBASE_CREDENTIALS_BASE64 env var, OR")
+    logger.info("   3. Google Cloud SDK configured with proper credentials")
     logger.info("🔄 Falling back to in-memory storage with no data")
     _firebase_connected = False
     return None
