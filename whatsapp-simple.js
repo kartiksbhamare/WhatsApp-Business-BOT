@@ -97,7 +97,30 @@ function getPuppeteerArgs() {
             '--safebrowsing-disable-auto-update',
             '--ignore-certificate-errors',
             '--ignore-ssl-errors',
-            '--ignore-certificate-errors-spki-list'
+            '--ignore-certificate-errors-spki-list',
+            '--disable-web-security',
+            '--allow-running-insecure-content',
+            '--disable-features=VizDisplayCompositor',
+            '--disable-features=VizHitTestSurfaceLayer',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-client-side-phishing-detection',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-default-apps',
+            '--disable-dev-shm-usage',
+            '--disable-extensions-file-access-check',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection',
+            '--enable-features=NetworkService,NetworkServiceInProcess',
+            '--force-color-profile=srgb',
+            '--metrics-recording-only',
+            '--no-default-browser-check',
+            '--no-first-run',
+            '--password-store=basic',
+            '--use-mock-keychain',
+            '--disable-background-mode',
+            '--disable-add-to-shelf',
+            '--disable-background-downloads',
+            '--disable-background-sync'
         ];
     }
     
@@ -360,15 +383,44 @@ app.listen(PORT, () => {
     console.log(`🚀 [${SALON_NAME}] WhatsApp Bot running on port ${PORT}`);
     console.log(`🔗 [${SALON_NAME}] QR Code URL: http://localhost:${PORT}/qr`);
     
-    // Initialize WhatsApp after server starts
-    console.log(`🔄 [${SALON_NAME}] Initializing WhatsApp client...`);
-    whatsappClient.initialize().catch((error) => {
-        console.error(`❌ [${SALON_NAME}] Initialization failed:`, error.message);
-        console.log(`🔄 [${SALON_NAME}] Retrying in 10 seconds...`);
-        setTimeout(() => {
-            whatsappClient.initialize();
-        }, 10000);
-    });
+    // Initialize WhatsApp with enhanced error handling and retries
+    let initializationAttempts = 0;
+    const maxInitializationAttempts = 5;
+    
+    const initializeWithRetry = async () => {
+        initializationAttempts++;
+        console.log(`🔄 [${SALON_NAME}] Initializing WhatsApp client (attempt ${initializationAttempts}/${maxInitializationAttempts})...`);
+        
+        try {
+            // Add a small delay before initialization to let Chrome settle
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await whatsappClient.initialize();
+            console.log(`✅ [${SALON_NAME}] WhatsApp client initialized successfully!`);
+        } catch (error) {
+            console.error(`❌ [${SALON_NAME}] Initialization failed (attempt ${initializationAttempts}):`, error.message);
+            
+            if (initializationAttempts < maxInitializationAttempts) {
+                const retryDelay = Math.min(10000 * initializationAttempts, 60000); // Exponential backoff, max 60s
+                console.log(`🔄 [${SALON_NAME}] Retrying in ${retryDelay/1000} seconds...`);
+                
+                // Clean up any existing client state
+                try {
+                    await whatsappClient.destroy();
+                } catch (destroyError) {
+                    console.log(`🧹 [${SALON_NAME}] Client cleanup completed`);
+                }
+                
+                setTimeout(initializeWithRetry, retryDelay);
+            } else {
+                console.error(`❌ [${SALON_NAME}] Failed to initialize after ${maxInitializationAttempts} attempts`);
+                console.log(`🔄 [${SALON_NAME}] Will continue running server, manual restart may be needed`);
+            }
+        }
+    };
+    
+    // Start initialization after a brief delay
+    setTimeout(initializeWithRetry, 3000);
 });
 
 // Graceful shutdown
