@@ -86,27 +86,85 @@ function initializeWhatsApp() {
     // Load connection status
     loadConnectionStatus();
     
-    // Initialize WhatsApp client with simpler configuration
+    // Determine Chrome executable path based on environment
+    function getChromeExecutablePath() {
+        // Check if running in Docker container (prioritize this)
+        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+            console.log(`🐳 Using Docker Chrome path: ${process.env.PUPPETEER_EXECUTABLE_PATH}`);
+            return process.env.PUPPETEER_EXECUTABLE_PATH;
+        }
+        
+        // Check for common Chrome paths (prioritize Linux for containers)
+        const chromePaths = [
+            '/usr/bin/google-chrome-stable',  // Linux (Docker/Railway)
+            '/usr/bin/google-chrome',         // Linux alternative
+            '/usr/bin/chromium-browser',      // Ubuntu/Debian alternative
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // macOS
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',    // Windows
+            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Windows 32-bit
+        ];
+        
+        console.log(`🔍 [${SALON_NAME}] Searching for Chrome executable...`);
+        for (const path of chromePaths) {
+            console.log(`  Checking: ${path}`);
+            if (fs.existsSync(path)) {
+                console.log(`✅ [${SALON_NAME}] Found Chrome at: ${path}`);
+                return path;
+            } else {
+                console.log(`  ❌ Not found`);
+            }
+        }
+        
+        console.log(`⚠️ [${SALON_NAME}] Chrome not found in standard locations, using system default`);
+        return undefined; // Let Puppeteer use its default
+    }
+
+    // Get Puppeteer arguments based on environment
+    function getPuppeteerArgs() {
+        const baseArgs = ['--no-sandbox', '--disable-setuid-sandbox'];
+        
+        // Add Docker-specific arguments if in container
+        if (process.env.PUPPETEER_ARGS) {
+            const dockerArgs = process.env.PUPPETEER_ARGS.split(' ');
+            return [...baseArgs, ...dockerArgs];
+        }
+        
+        // Add additional arguments for stability
+        return [
+            ...baseArgs,
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-default-apps'
+        ];
+    }
+
+    // Get Chrome configuration
+    const chromeExecutablePath = getChromeExecutablePath();
+    const puppeteerArgs = getPuppeteerArgs();
+    
+    console.log(`🔧 [${SALON_NAME}] Chrome executable: ${chromeExecutablePath || 'system default'}`);
+    console.log(`🔧 [${SALON_NAME}] Puppeteer args: ${puppeteerArgs.join(' ')}`);
+    
+    const puppeteerConfig = {
+        headless: true,
+        args: puppeteerArgs
+    };
+    
+    if (chromeExecutablePath) {
+        puppeteerConfig.executablePath = chromeExecutablePath;
+    }
+    
+    // Initialize WhatsApp client with dynamic Chrome configuration
     whatsappClient = new Client({
         authStrategy: new LocalAuth({ clientId: 'salon-bot' }),
-        puppeteer: {
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--disable-gpu',
-                '--disable-web-security',
-                '--disable-features=VizDisplayCompositor',
-                '--disable-extensions',
-                '--disable-plugins',
-                '--disable-default-apps'
-            ],
-            executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-        }
+        puppeteer: puppeteerConfig
     });
     
     // Ready event
