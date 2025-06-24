@@ -127,7 +127,14 @@ try {
     
     const puppeteerConfig = {
         headless: true,
-        args: puppeteerArgs
+        args: puppeteerArgs,
+        timeout: 60000,
+        protocolTimeout: 60000,
+        handleSIGINT: false,
+        handleSIGTERM: false,
+        handleSIGHUP: false,
+        defaultViewport: null,
+        devtools: false
     };
     
     if (chromeExecutablePath) {
@@ -136,7 +143,11 @@ try {
     
     whatsappClient = new Client({
         authStrategy: new LocalAuth({ clientId: 'simple-salon' }),
-        puppeteer: puppeteerConfig
+        puppeteer: puppeteerConfig,
+        restartOnAuthFail: true,
+        qrMaxRetries: 5,
+        takeoverOnConflict: true,
+        takeoverTimeoutMs: 60000
     });
 
     console.log(`✅ WhatsApp client created successfully`);
