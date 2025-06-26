@@ -1,96 +1,119 @@
 #!/bin/bash
 
-echo "🚀 Starting WhatsApp Booking Bot for Railway"
-echo "============================================="
+# Railway WhatsApp Booking Bot Startup Script
+# Environment-aware with retry logic and session management
 
-# Set Railway-specific environment variables
-export RAILWAY_ENVIRONMENT=true
-export DOCKER_ENV=true
-export NODE_ENV=production
-export SALON_NAME="Beauty Salon"
-export PORT=3000
-
-# Clean up any existing Chrome processes
-pkill -f "chrome" 2>/dev/null || true
-pkill -f "chromium" 2>/dev/null || true
-
-# Clean up old session files if they exist and are corrupted
-if [ -d "/app/.wwebjs_auth" ]; then
-    echo "🧹 Checking for corrupted session files..."
-    # Remove any lock files that might prevent startup
-    find /app/.wwebjs_auth -name "*.lock" -delete 2>/dev/null || true
+# Load environment variables
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
 fi
 
-echo "📋 Railway Configuration:"
-echo "  Environment: Railway Cloud"
-echo "  Salon Name: $SALON_NAME"
-echo "  WhatsApp Port: $PORT"
-echo "  Backend Port: 8000"
-echo "  Chrome Path: /usr/bin/google-chrome-stable"
+# Set defaults for Railway environment
+export BACKEND_URL=${BACKEND_URL:-"http://localhost:8000"}
+export WHATSAPP_SERVICE_URL=${WHATSAPP_SERVICE_URL:-"http://localhost:3000"}
+export BACKEND_PORT=${BACKEND_PORT:-8000}
+export WHATSAPP_PORT=${WHATSAPP_PORT:-3000}
+export SALON_NAME=${SALON_NAME:-"Beauty Salon"}
+export RAILWAY_ENVIRONMENT=true
 
-# Start backend
-echo ""
-echo "🐍 Starting Python Backend..."
-python3 -m uvicorn app.main_simple:app --host 0.0.0.0 --port 8000 &
-BACKEND_PID=$!
+echo "🚂 Starting WhatsApp Bot on Railway"
+echo "=================================================="
+echo "🏢 Salon: $SALON_NAME"
+echo "🔗 Backend URL: $BACKEND_URL"
+echo "📱 WhatsApp URL: $WHATSAPP_SERVICE_URL"
+echo "=================================================="
 
-# Wait for backend to start
-sleep 5
+# Clean up any existing Chrome processes
+cleanup_chrome() {
+    echo "🧹 Cleaning up Chrome processes..."
+    pkill -f "chrome" 2>/dev/null || true
+    pkill -f "chromium" 2>/dev/null || true
+    rm -rf /tmp/.X* /tmp/chrome-* 2>/dev/null || true
+    sleep 2
+}
 
-# Start WhatsApp service with retry logic
-echo ""
-echo "📱 Starting WhatsApp Service with Railway optimizations..."
-
-# Function to start WhatsApp with retries
-start_whatsapp() {
-    local attempt=1
-    local max_attempts=3
+# Initialize WhatsApp client with retry logic
+initialize_whatsapp() {
+    local attempt=$1
+    local max_attempts=5
     
-    while [ $attempt -le $max_attempts ]; do
-        echo "🔄 Attempt $attempt of $max_attempts..."
-        
-        # Start WhatsApp service
-        timeout 120 node whatsapp-simple.js &
-        WHATSAPP_PID=$!
-        
-        # Wait and check if it's still running
-        sleep 30
-        
-        if kill -0 $WHATSAPP_PID 2>/dev/null; then
-            echo "✅ WhatsApp service started successfully!"
-            return 0
-        else
-            echo "❌ WhatsApp service failed to start (attempt $attempt)"
-            wait $WHATSAPP_PID 2>/dev/null
-            attempt=$((attempt + 1))
+    echo "🔄 [$SALON_NAME] Initializing WhatsApp client (attempt $attempt/$max_attempts)..."
+    
+    # Clean up before each attempt
+    cleanup_chrome
+    rm -rf .wwebjs_auth/session* 2>/dev/null || true
+    
+    # Start the WhatsApp service
+    timeout 120s node whatsapp-simple.js &
+    local whatsapp_pid=$!
+    
+    # Wait for initialization with timeout
+    local wait_time=0
+    local max_wait=90
+    
+    while [ $wait_time -lt $max_wait ]; do
+        if ps -p $whatsapp_pid > /dev/null 2>&1; then
+            sleep 5
+            wait_time=$((wait_time + 5))
             
-            if [ $attempt -le $max_attempts ]; then
-                echo "⏰ Waiting 10 seconds before retry..."
-                sleep 10
-                
-                # Clean up any Chrome processes
-                pkill -f "chrome" 2>/dev/null || true
-                pkill -f "chromium" 2>/dev/null || true
+            # Check if service is responding
+            if curl -s -f http://localhost:$WHATSAPP_PORT/health > /dev/null 2>&1; then
+                echo "✅ [$SALON_NAME] WhatsApp service initialized successfully!"
+                return 0
             fi
+        else
+            echo "❌ [$SALON_NAME] WhatsApp process died during initialization"
+            break
         fi
     done
     
-    echo "❌ Failed to start WhatsApp service after $max_attempts attempts"
+    echo "⏰ [$SALON_NAME] Initialization timeout or failure"
+    kill $whatsapp_pid 2>/dev/null || true
     return 1
 }
 
-# Start WhatsApp with retries
-if start_whatsapp; then
+# Main startup logic with retry
+attempt=1
+max_attempts=5
+
+while [ $attempt -le $max_attempts ]; do
     echo ""
-    echo "✅ All Services Started Successfully!"
-    echo "📱 WhatsApp QR Code: https://your-app.railway.app/qr"
-    echo "🐍 Backend API: https://your-app.railway.app"
-    echo "📋 Health Check: https://your-app.railway.app/health"
+    echo "🚀 Starting attempt $attempt/$max_attempts..."
     
-    # Wait for WhatsApp service
-    wait $WHATSAPP_PID
-else
-    echo "❌ Failed to start services"
-    kill $BACKEND_PID 2>/dev/null
-    exit 1
-fi 
+    if initialize_whatsapp $attempt; then
+        echo "🎉 [$SALON_NAME] WhatsApp Bot started successfully!"
+        echo ""
+        echo "✅ Service URLs:"
+        echo "📱 QR Code: $WHATSAPP_SERVICE_URL/qr"
+        echo "🔍 Health: $WHATSAPP_SERVICE_URL/health"
+        echo ""
+        
+        # Keep the service running
+        while true; do
+            sleep 30
+            # Health check
+            if ! curl -s -f http://localhost:$WHATSAPP_PORT/health > /dev/null 2>&1; then
+                echo "⚠️ [$SALON_NAME] Health check failed, service may have crashed"
+                break
+            fi
+        done
+        
+        # If we get here, the service crashed, try to restart
+        echo "🔄 [$SALON_NAME] Service crashed, attempting restart..."
+        cleanup_chrome
+    else
+        echo "❌ [$SALON_NAME] Attempt $attempt failed"
+    fi
+    
+    if [ $attempt -lt $max_attempts ]; then
+        local delay=$((attempt * 10))
+        echo "⏰ [$SALON_NAME] Waiting ${delay}s before retry..."
+        sleep $delay
+    fi
+    
+    attempt=$((attempt + 1))
+done
+
+echo "💥 [$SALON_NAME] Failed to start after $max_attempts attempts"
+echo "🔧 Check Railway logs for Chrome/Puppeteer errors"
+exit 1 

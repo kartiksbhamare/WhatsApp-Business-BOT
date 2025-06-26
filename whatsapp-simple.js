@@ -4,12 +4,14 @@ const qrcode = require('qrcode');
 const axios = require('axios');
 const fs = require('fs');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.WHATSAPP_PORT || process.env.PORT || 3000;
 const SALON_NAME = process.env.SALON_NAME || 'Beauty Salon';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 
 console.log(`🏢 Starting ${SALON_NAME} WhatsApp Bot`);
 console.log(`📋 Port: ${PORT}`);
 console.log(`📋 Salon: ${SALON_NAME}`);
+console.log(`🔗 Backend URL: ${BACKEND_URL}`);
 
 // Express app
 const app = express();
@@ -224,7 +226,7 @@ try {
             
             console.log(`📤 [${SALON_NAME}] Webhook data:`, JSON.stringify(webhookData, null, 2));
             
-            const response = await axios.post('http://localhost:8000/webhook/whatsapp', webhookData, {
+            const response = await axios.post(`${BACKEND_URL}/webhook/whatsapp`, webhookData, {
                 headers: {
                     'Content-Type': 'application/json'
                 },

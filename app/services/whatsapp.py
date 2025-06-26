@@ -2,8 +2,10 @@ import requests
 from datetime import datetime
 import logging
 from app.config import get_settings
+from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 def send_whatsapp_message(to_number: str, message: str) -> bool:
     """
@@ -17,8 +19,6 @@ def send_whatsapp_message(to_number: str, message: str) -> bool:
         bool: True if message was sent successfully
     """
     try:
-        settings = get_settings()
-        
         # Clean the phone number - remove any 'whatsapp:' prefix if present
         phone_number = to_number.replace("whatsapp:", "").strip()
         
@@ -82,14 +82,21 @@ def send_confirmation(phone: str, barber: str, time_slot: str, service: str) -> 
         return False
 
 def check_whatsapp_service_health() -> bool:
-    """Check if WhatsApp Web.js service is running and healthy"""
+    """Check if WhatsApp Web service is healthy"""
     try:
-        # Use port 3000 for the simplified service
-        response = requests.get('http://localhost:3000/health', timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('status') == 'ready'
-        return False
+        response = requests.get(f'{settings.WHATSAPP_SERVICE_URL}/health', timeout=5)
+        return response.status_code == 200
     except Exception as e:
-        logger.error(f"Error checking WhatsApp Web service health: {str(e)}")
-        return False 
+        logger.warning(f"WhatsApp service health check failed: {e}")
+        return False
+
+def get_whatsapp_service_info() -> Optional[Dict]:
+    """Get WhatsApp service information"""
+    try:
+        response = requests.get(f'{settings.WHATSAPP_SERVICE_URL}/info', timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to get WhatsApp service info: {e}")
+        return None 

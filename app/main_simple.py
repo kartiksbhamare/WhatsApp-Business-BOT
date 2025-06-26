@@ -381,7 +381,7 @@ async def whatsapp_webhook(request: Request):
 @app.get("/qr", response_class=HTMLResponse)
 async def qr_code_page():
     """QR code page that redirects to WhatsApp service"""
-    whatsapp_service_url = f"http://localhost:3000/qr"
+    whatsapp_service_url = f"{settings.WHATSAPP_SERVICE_URL}/qr"
     
     return f"""
     <!DOCTYPE html>

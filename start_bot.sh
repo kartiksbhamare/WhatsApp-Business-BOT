@@ -1,49 +1,56 @@
 #!/bin/bash
 
-echo "🚀 Starting WhatsApp Booking Bot"
-echo "================================"
+# Smart WhatsApp Booking Bot - Startup Script
+# Environment-aware startup with configurable URLs
 
-# Kill any existing processes
-pkill -f "uvicorn.*main_simple" 2>/dev/null
-pkill -f "node.*whatsapp-simple" 2>/dev/null
-sleep 2
+# Load environment variables
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
 
-# Clean up old files
-rm -f *.png
+# Set defaults if not provided
+export BACKEND_URL=${BACKEND_URL:-"http://localhost:8000"}
+export WHATSAPP_SERVICE_URL=${WHATSAPP_SERVICE_URL:-"http://localhost:3000"}
+export BACKEND_PORT=${BACKEND_PORT:-8000}
+export WHATSAPP_PORT=${WHATSAPP_PORT:-3000}
+export SALON_NAME=${SALON_NAME:-"Beauty Salon"}
 
-echo "🐍 Starting Backend..."
-python3 -m uvicorn app.main_simple:app --host 0.0.0.0 --port 8000 &
+echo "🚀 Starting Smart WhatsApp Booking Bot"
+echo "=================================================="
+echo "🏢 Salon: $SALON_NAME"
+echo "🔗 Backend URL: $BACKEND_URL"
+echo "📱 WhatsApp URL: $WHATSAPP_SERVICE_URL"
+echo "=================================================="
+
+# Start backend
+echo "🐍 Starting Python Backend..."
+python -m uvicorn app.main_simple:app --host 0.0.0.0 --port $BACKEND_PORT &
 BACKEND_PID=$!
 
+# Wait for backend to start
+sleep 5
+
+# Start WhatsApp service
 echo "📱 Starting WhatsApp Service..."
-SALON_NAME="Beauty Salon" PORT=3000 node whatsapp-simple.js &
+node whatsapp-simple.js &
 WHATSAPP_PID=$!
 
+# Wait for services to initialize
 sleep 3
 
 echo ""
-echo "✅ Services Started!"
-echo "📱 WhatsApp QR Code: http://localhost:3000/qr"
-echo "🐍 Backend API: http://localhost:8000"
-echo "📋 Health Check: http://localhost:8000/health"
+echo "✅ Services Started Successfully!"
+echo "=================================================="
+echo "📱 WhatsApp QR Code: $WHATSAPP_SERVICE_URL/qr"
+echo "🐍 Backend API: $BACKEND_URL"
+echo "📋 Health Check: $BACKEND_URL/health"
+echo "=================================================="
 echo ""
-echo "🎯 Next Steps:"
-echo "1. Open http://localhost:3000/qr in your browser"
-echo "2. Scan QR code with WhatsApp on your phone"
+echo "1. Open $WHATSAPP_SERVICE_URL/qr in your browser"
+echo "2. Scan the QR code with WhatsApp"
 echo "3. Send 'hi' to test the bot"
 echo ""
-echo "Press Ctrl+C to stop..."
+echo "Press Ctrl+C to stop all services"
 
-# Cleanup function
-cleanup() {
-    echo ""
-    echo "🛑 Stopping services..."
-    kill $BACKEND_PID $WHATSAPP_PID 2>/dev/null
-    pkill -f "uvicorn.*main_simple" 2>/dev/null
-    pkill -f "node.*whatsapp-simple" 2>/dev/null
-    echo "👋 Stopped!"
-    exit 0
-}
-
-trap cleanup INT
-wait 
+# Wait for user interrupt
+wait $BACKEND_PID $WHATSAPP_PID 

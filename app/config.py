@@ -15,13 +15,22 @@ class Settings(BaseSettings):
         extra='allow'  # Allow extra fields for backward compatibility
     )
     
-    # WhatsApp Web Service Settings - Updated for single salon
-    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Single WhatsApp service on port 3000
-    VENOM_SERVICE_URL: Optional[str] = None  # For backward compatibility
+    # Service URL Configuration - Environment-based, no hardcoded localhost
+    BACKEND_URL: str = "http://localhost:8000"  # Default for local development
+    BACKEND_HOST: str = "0.0.0.0"
+    BACKEND_PORT: int = 8000
+    
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"  # Default for local development  
+    WHATSAPP_HOST: str = "0.0.0.0"
+    WHATSAPP_PORT: int = 3000
+    
+    # Salon Configuration
+    SALON_NAME: str = "Beauty Salon"
     
     # Firebase Settings
     FIREBASE_PROJECT_ID: str = "appointment-booking-4c50f"
     FIREBASE_CREDENTIALS_PATH: str = "firebase-key.json"
+    FIREBASE_CREDENTIALS_BASE64: Optional[str] = None  # For Railway deployment
     
     # Google Calendar Settings (optional)
     GOOGLE_CALENDAR_CREDENTIALS_PATH: Optional[str] = "client_secret.json"
@@ -32,24 +41,49 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
     
+    # Environment Detection
+    RAILWAY_ENVIRONMENT: Optional[str] = None
+    DOCKER_ENV: Optional[str] = None
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._detect_environment()
         self._handle_backward_compatibility()
         self._setup_logging()
         self._validate_settings()
     
+    def _detect_environment(self):
+        """Detect deployment environment and adjust URLs accordingly"""
+        # Auto-detect Railway environment
+        if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
+            logger.info("🚂 Railway environment detected")
+            # In Railway, use internal service communication or public URLs
+            railway_url = os.getenv("RAILWAY_STATIC_URL") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
+            if railway_url:
+                # Use Railway public URLs if available
+                protocol = "https" if not railway_url.startswith("localhost") else "http"
+                self.BACKEND_URL = f"{protocol}://{railway_url}"
+                self.WHATSAPP_SERVICE_URL = f"{protocol}://{railway_url}"
+                logger.info(f"🔗 Using Railway URLs: {self.BACKEND_URL}")
+        
+        # Auto-detect Docker environment
+        elif os.getenv("DOCKER_ENV") or os.path.exists("/.dockerenv"):
+            logger.info("🐳 Docker environment detected")
+            # In Docker, use service names for internal communication
+            self.BACKEND_URL = "http://backend:8000"
+            self.WHATSAPP_SERVICE_URL = "http://whatsapp:3000"
+        
+        # Local development - use defaults
+        else:
+            logger.info("💻 Local development environment detected")
+    
     def _handle_backward_compatibility(self):
         """Handle backward compatibility for renamed environment variables"""
-        # Force correct port for simplified single-salon setup
-        self.WHATSAPP_SERVICE_URL = "http://localhost:3000"
-        logger.info("🔧 Using simplified single-salon configuration on port 3000")
-        
-        # Handle legacy VENOM_SERVICE_URL for local development only
-        if self.VENOM_SERVICE_URL and not os.environ.get("PORT"):
-            # Only use VENOM_SERVICE_URL for local development if it's also port 3000
-            if "3000" in str(self.VENOM_SERVICE_URL):
-                self.WHATSAPP_SERVICE_URL = self.VENOM_SERVICE_URL
-                logger.info("Using VENOM_SERVICE_URL for backward compatibility. Please update to WHATSAPP_SERVICE_URL")
+        # Handle legacy VENOM_SERVICE_URL
+        legacy_venom_url = os.getenv("VENOM_SERVICE_URL")
+        if legacy_venom_url and not os.getenv("WHATSAPP_SERVICE_URL"):
+            self.WHATSAPP_SERVICE_URL = legacy_venom_url
+            logger.warning("⚠️ Using deprecated VENOM_SERVICE_URL. Please update to WHATSAPP_SERVICE_URL")
     
     def _setup_logging(self):
         """Setup logging configuration"""
@@ -64,17 +98,21 @@ class Settings(BaseSettings):
         logger.info(f"🔧 DEBUG: {self.DEBUG}")
         logger.info(f"📊 LOG_LEVEL: {self.LOG_LEVEL}")
         
+        # Service URLs
+        logger.info(f"🔗 BACKEND_URL: {self.BACKEND_URL}")
+        logger.info(f"📱 WHATSAPP_SERVICE_URL: {self.WHATSAPP_SERVICE_URL}")
+        logger.info(f"🏢 SALON_NAME: {self.SALON_NAME}")
+        
         # Firebase validation
         logger.info(f"🔥 FIREBASE_PROJECT_ID: {self.FIREBASE_PROJECT_ID}")
         logger.info(f"📄 FIREBASE_CREDENTIALS_PATH: {self.FIREBASE_CREDENTIALS_PATH}")
         
-        if not os.path.exists(self.FIREBASE_CREDENTIALS_PATH):
+        if self.FIREBASE_CREDENTIALS_BASE64:
+            logger.info("🔑 Using base64 Firebase credentials (Railway deployment)")
+        elif not os.path.exists(self.FIREBASE_CREDENTIALS_PATH):
             logger.warning(f"⚠️ Firebase credentials file not found: {self.FIREBASE_CREDENTIALS_PATH}")
         else:
             logger.info("✅ Firebase credentials file found")
-        
-        # WhatsApp Web Service validation
-        logger.info(f"📱 WHATSAPP_SERVICE_URL: {self.WHATSAPP_SERVICE_URL}")
         
         # Google Calendar validation (optional)
         if self.GOOGLE_CALENDAR_CREDENTIALS_PATH:

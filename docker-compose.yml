@@ -1,34 +1,48 @@
 version: '3.8'
 
 services:
-  whatsapp-bot:
+  whatsapp:
     build: .
-    container_name: whatsapp-booking-bot
+    command: node whatsapp-simple.js
     ports:
-      - "3000:3000"  # WhatsApp service
-      - "8000:8000"  # Backend API
+      - "${WHATSAPP_PORT:-3000}:${WHATSAPP_PORT:-3000}"
     environment:
-      - DISPLAY=:99
-      - CHROME_BIN=/usr/bin/google-chrome-stable
+      - WHATSAPP_PORT=${WHATSAPP_PORT:-3000}
+      - WHATSAPP_HOST=${WHATSAPP_HOST:-0.0.0.0}
+      - BACKEND_URL=http://backend:${BACKEND_PORT:-8000}
+      - SALON_NAME=${SALON_NAME:-Beauty Salon}
+      - DOCKER_ENV=true
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
-      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-      - NODE_ENV=production
     volumes:
-      # Mount Firebase credentials (make sure firebase-key.json exists)
-      - ./firebase-key.json:/app/firebase-key.json:ro
-      # Persist WhatsApp session data
-      - whatsapp_auth:/app/.wwebjs_auth
-      - whatsapp_cache:/app/.wwebjs_cache
-      - whatsapp_tokens:/app/tokens
+      - ./.wwebjs_auth:/app/.wwebjs_auth
+      - ./.wwebjs_cache:/app/.wwebjs_cache
+    depends_on:
+      - backend
     restart: unless-stopped
+
+  backend:
+    build: .
+    command: python -m uvicorn app.main_simple:app --host 0.0.0.0 --port ${BACKEND_PORT:-8000}
+    ports:
+      - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
+    environment:
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - BACKEND_HOST=${BACKEND_HOST:-0.0.0.0}
+      - WHATSAPP_SERVICE_URL=http://whatsapp:${WHATSAPP_PORT:-3000}
+      - SALON_NAME=${SALON_NAME:-Beauty Salon}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-appointment-booking-4c50f}
+      - FIREBASE_CREDENTIALS_PATH=/app/firebase-key.json
+      - DOCKER_ENV=true
+    volumes:
+      - ./firebase-key.json:/app/firebase-key.json:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT:-8000}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    restart: unless-stopped
 
-volumes:
-  whatsapp_auth:
-  whatsapp_cache:
-  whatsapp_tokens: 
+networks:
+  default:
+    name: whatsapp-booking-network 
