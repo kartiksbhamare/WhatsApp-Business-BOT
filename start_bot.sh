@@ -24,7 +24,7 @@ echo "=================================================="
 
 # Start backend
 echo "🐍 Starting Python Backend..."
-python -m uvicorn app.main_simple:app --host 0.0.0.0 --port $BACKEND_PORT &
+python -m uvicorn app.main:app --host 0.0.0.0 --port $BACKEND_PORT &
 BACKEND_PID=$!
 
 # Wait for backend to start

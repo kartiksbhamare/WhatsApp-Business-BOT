@@ -24,7 +24,7 @@ echo "  Backend Port: 8000"
 # Start backend
 echo ""
 echo "🐍 Starting Python Backend..."
-python3 -m uvicorn app.main_simple:app --host 0.0.0.0 --port 8000 --reload &
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 
 # Wait for backend to start
