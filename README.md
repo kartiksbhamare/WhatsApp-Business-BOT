@@ -1,227 +1,255 @@
-# 🚀 Smart WhatsApp Booking Bot - Multi-Salon Edition
+# 🎯 Smart WhatsApp Booking Bot - Single Salon Edition
 
-[![Production Ready](https://img.shields.io/badge/Production-Ready-brightgreen.svg)](https://github.com/kartiksbhamare/WhatsApp-Business-BOT)
-[![Multi-Salon](https://img.shields.io/badge/Multi--Salon-Supported-blue.svg)](https://github.com/kartiksbhamare/WhatsApp-Business-BOT)
-[![Railway](https://img.shields.io/badge/Deploy-Railway-purple.svg)](https://railway.app)
+A complete WhatsApp-based appointment booking system for a single salon using FastAPI, Firebase, and WhatsApp Web.js.
 
-## 🏢 Multi-Salon Architecture
+## 🌟 Features
 
-This system now supports **true multi-salon separation** with:
-
-- **3 Separate WhatsApp Numbers** (one per salon)
-- **Individual QR Codes** for each salon
-- **Automatic Salon Detection** - customers just send "hi"
-- **Complete Service Isolation** - no cross-salon confusion
-
-### 🎯 Salon Configuration
-
-| Salon | Port | WhatsApp Number | Services |
-|-------|------|----------------|----------|
-| 🏪 Downtown Beauty | 3005 | Individual Number | Hair Cut, Facial, Wash |
-| 💇 Uptown Hair Studio | 3006 | Individual Number | Hair Styling, Treatments |
-| ✨ Luxury Spa & Salon | 3007 | Individual Number | Spa, Massage, Premium Services |
+- **📱 WhatsApp Integration**: Real WhatsApp Web.js integration for authentic messaging
+- **🔥 Firebase Database**: Cloud-based data storage with real-time sync
+- **🎯 Single Salon Focus**: Streamlined for one salon operation
+- **📅 Smart Scheduling**: Automatic availability checking and booking
+- **🚀 Easy Deployment**: Ready for Railway, Docker, or local development
+- **🔧 Environment Configurable**: No hardcoded URLs - works anywhere
 
 ## 🚀 Quick Start
 
-### Local Testing
+### 1. **Environment Setup**
 ```bash
-npm run unified
+# Interactive setup (recommended)
+./setup_env.sh
+
+# Or copy template manually
+cp env.template .env
+# Edit .env with your settings
 ```
 
-### Railway Deployment
-1. Push to GitHub
-2. Connect to Railway
-3. Auto-deployment handles all 3 salons
-
-## 📱 QR Code URLs (Production)
-- Salon A: `https://your-app.railway.app:3005/qr`
-- Salon B: `https://your-app.railway.app:3006/qr`
-- Salon C: `https://your-app.railway.app:3007/qr`
-
----
-
-*Powered by Option A: Unified Multi-Salon Service Architecture*
-
-## 🚀 Features
-
-- **Free WhatsApp Integration** using Venom Bot (no more Twilio costs!)
-- Interactive WhatsApp booking conversations
-- Service selection and barber assignment
-- Real-time slot availability
-- Firebase database integration
-- Google Calendar sync (optional)
-- RESTful API endpoints
-- Easy deployment
-
-## 🛠️ Technologies
-
-- **Backend**: Python FastAPI
-- **WhatsApp**: Venom Bot (Node.js)
-- **Database**: Firebase Firestore
-- **Calendar**: Google Calendar API (optional)
-
-## 📋 Prerequisites
-
-- Python 3.8+
-- Node.js 16+
-- Firebase account
-- WhatsApp account for the bot
-
-## ⚙️ Installation & Setup
-
-### 1. Clone the Repository
-
+### 2. **Start the Bot**
 ```bash
-git clone <your-repo-url>
-cd Smart-WhatsApp-Booking-Bot
+# Complete setup and start
+./start_bot.sh
+
+# Or run simple version
+./run_simple.sh
 ```
 
-### 2. Install Dependencies
+### 3. **Connect WhatsApp**
+1. Open `http://localhost:3000/qr` in your browser
+2. Scan the QR code with WhatsApp
+3. Send "hi" to test the bot
 
-#### Install Node.js Dependencies (for Venom Bot)
+## 📋 System Architecture
+
+```
+Customer WhatsApp → WhatsApp Web.js → FastAPI Backend → Firebase Database
+                                   ↓
+                              Booking Confirmation
+```
+
+## 🛠️ Installation
+
+### Prerequisites
+- **Node.js 18+**
+- **Python 3.9+**
+- **Google Chrome** (for WhatsApp Web.js)
+- **Firebase Project** with Firestore
+
+### Local Development
 ```bash
+# 1. Clone repository
+git clone https://github.com/kartiksbhamare/WhatsApp-Business-BOT.git
+cd WhatsApp-Business-BOT
+
+# 2. Install dependencies
 npm install
-```
-
-#### Install Python Dependencies
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+
+# 3. Setup environment
+./setup_env.sh
+
+# 4. Add Firebase credentials
+# Place your firebase-key.json in the root directory
+
+# 5. Start the bot
+./start_bot.sh
 ```
 
-### 3. Environment Configuration
+## 🌍 Deployment Options
 
-Create a `.env` file in the root directory:
-
+### 🚂 Railway (Recommended)
 ```bash
-# Venom Bot Settings
-VENOM_SERVICE_URL=http://localhost:3000
+# 1. Connect GitHub repo to Railway
+# 2. Set environment variables:
+BACKEND_URL=https://your-app.railway.app
+WHATSAPP_SERVICE_URL=https://your-app.railway.app
+RAILWAY_ENVIRONMENT=true
+FIREBASE_CREDENTIALS_BASE64=<your_base64_credentials>
 
-# Firebase Settings
-FIREBASE_PROJECT_ID=your-firebase-project-id
-
-# Optional: Google Calendar Integration
-GOOGLE_CALENDAR_CREDENTIALS_PATH=client_secret.json
-GOOGLE_CALENDAR_ID=your-calendar-id@gmail.com
-
-# App Settings
-DEBUG=false
-LOG_LEVEL=INFO
+# 3. Deploy!
 ```
 
-### 4. Firebase Setup
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project or use existing one
-3. Go to Project Settings → Service Accounts
-4. Generate a new private key and save it as `firebase-key.json` in the root directory
-5. Enable Firestore Database in your Firebase project
-
-### 5. Start the Services
-
-#### Option 1: Use the Start Script (Recommended)
+### 🐳 Docker
 ```bash
-chmod +x start-services.sh
-./start-services.sh
+# Using Docker Compose
+docker-compose up
+
+# Or build manually
+docker build -t whatsapp-bot .
+docker run -p 3000:3000 -p 8000:8000 whatsapp-bot
 ```
 
-#### Option 2: Manual Start
-Terminal 1 - Start Venom Bot service:
-```bash
-node venom-service.js
+## 📱 How It Works
+
+### Customer Experience
+1. **Scan QR Code** → Opens WhatsApp chat
+2. **Send "hi"** → Bot shows available services
+3. **Select Service** → Choose from salon services
+4. **Choose Barber** → Pick preferred stylist
+5. **Select Date** → Today or tomorrow
+6. **Pick Time** → Available time slots
+7. **Confirmation** → Booking confirmed!
+
+### Example Conversation
 ```
+Customer: hi
+Bot: 👋 Welcome to Beauty Salon! ✨
 
-Terminal 2 - Start FastAPI application:
-```bash
-source venv/bin/activate
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+Here are our services:
+1. Hair Cut ($35, ⏱️30 mins)
+2. Hair Color ($85, ⏱️120 mins)
+3. Manicure ($25, ⏱️45 mins)
+
+📝 Please enter the number of the service you'd like to book.
+
+Customer: 1
+Bot: ✅ You've selected Hair Cut!
+
+👨‍💼 Please choose your preferred stylist:
+1. ✂️ Maya Rodriguez
+2. ✂️ Alex Chen
+
+Customer: 1
+Bot: 🎉 Great! You've selected ✂️ Maya Rodriguez.
+
+📅 Please choose your preferred date:
+1. 📅 Today (Wednesday, June 26)
+2. 🌅 Tomorrow (Thursday, June 27)
+
+Customer: 2
+Bot: ✅ Perfect! Available times for 🌅 Thursday, June 27:
+1. ⏰ 09:00 AM
+2. ⏰ 10:30 AM
+3. ⏰ 02:00 PM
+
+Customer: 2
+Bot: 🎉✨ Booking Confirmed! ✨🎉
+
+📋 Your Appointment Details:
+💄 Service: Hair Cut
+✂️ Barber: Maya Rodriguez
+📅 Date: Thursday, June 27, 2025
+⏰ Time: 10:30 AM
+
+🤗 We look forward to seeing you at Beauty Salon! Thank you for choosing us! 💖
 ```
-
-### 6. WhatsApp Setup
-
-1. When you start the Venom service for the first time, it will generate a QR code
-2. Open WhatsApp on your phone
-3. Go to Settings → Linked Devices → Link a Device
-4. Scan the QR code displayed in the terminal or check `venom.log` file
-5. Your WhatsApp is now connected to the bot!
-
-## 📱 How to Use
-
-1. Send a WhatsApp message to your connected phone number with "hi" or "hello"
-2. The bot will show available services
-3. Select a service by typing the number
-4. Choose your preferred barber
-5. Select an available time slot
-6. Get booking confirmation!
-
-## 🌐 API Endpoints
-
-- `GET /` - Health check
-- `GET /api/services` - Get all services
-- `GET /api/barbers` - Get all barbers
-- `GET /api/slots/{barber_name}` - Get available slots
-- `POST /api/initialize` - Initialize database
-- `POST /webhook/venom` - Webhook for Venom Bot (internal use)
-
-Visit `http://localhost:8000/docs` for interactive API documentation.
 
 ## 🔧 Configuration
 
-### Venom Bot Configuration
-- **Session Management**: Venom Bot automatically manages WhatsApp Web sessions
-- **QR Code**: Generated automatically on first run
-- **Multi-device**: Works with WhatsApp multi-device feature
+### Environment Variables
+```env
+# Service URLs
+BACKEND_URL=http://localhost:8000
+WHATSAPP_SERVICE_URL=http://localhost:3000
+SALON_NAME=Beauty Salon
 
-### Database Configuration
-- All salon data is stored in Firebase Firestore
-- Sessions are managed in-memory for real-time conversations
-- Bookings are persisted to the database
+# Firebase
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CREDENTIALS_PATH=firebase-key.json
+# For Railway:
+FIREBASE_CREDENTIALS_BASE64=your_base64_credentials
 
-## 🚀 Deployment
+# Deployment
+RAILWAY_ENVIRONMENT=true  # Auto-detected
+DOCKER_ENV=true          # Auto-detected
+```
 
-### Railway Deployment
-1. Connect your GitHub repository to Railway
-2. Set environment variables in Railway dashboard
-3. Deploy both Node.js service and Python app
+### Firebase Setup
+1. Create a Firebase project
+2. Enable Firestore Database
+3. Create a service account key
+4. Download `firebase-key.json`
+5. Place in project root
 
-### Render Deployment
-1. Create two services: one for Node.js (Venom Bot) and one for Python (FastAPI)
-2. Configure environment variables
-3. Update `VENOM_SERVICE_URL` to point to your deployed Venom service
+## 📊 API Endpoints
 
-## 🆚 Why Venom Bot over Twilio?
+- **`GET /`** - Service status and info
+- **`GET /health`** - Health check with Firebase status
+- **`GET /qr`** - WhatsApp QR code page
+- **`POST /webhook/whatsapp`** - WhatsApp message webhook
+- **`GET /firebase-status`** - Firebase connection details
+- **`GET /bookings`** - All bookings (debug)
 
-| Feature | Venom Bot | Twilio |
-|---------|-----------|---------|
-| **Cost** | ✅ FREE | ❌ Paid (per message) |
-| **Setup** | ✅ Easy QR scan | ❌ Complex verification |
-| **Limitations** | ✅ No message limits | ❌ Daily limits on trial |
-| **Features** | ✅ Full WhatsApp features | ❌ Limited sandbox |
+Visit `http://localhost:8000/docs` for interactive API documentation.
 
-## 🐛 Troubleshooting
+## 🔍 Troubleshooting
 
-### Venom Bot Issues
-- **QR Code not showing**: Check `venom.log` file
-- **Connection lost**: Restart the Venom service
-- **Session expired**: Delete `tokens` folder and restart
+### Common Issues
 
-### General Issues
-- **Port conflicts**: Change ports in configuration
-- **Firebase errors**: Check your credentials and project ID
-- **Python errors**: Ensure virtual environment is activated
+**QR Code Not Showing**
+- Check if Chrome is installed
+- Verify WhatsApp service is running
+- Check browser console for errors
 
-## 📄 License
+**Messages Not Working**
+- Ensure Firebase is connected
+- Check webhook configuration
+- Verify WhatsApp Web session is active
 
-This project is licensed under the MIT License.
+**Firebase Connection Failed**
+- Verify `firebase-key.json` exists
+- Check Firebase project ID
+- Ensure Firestore is enabled
+
+### Debug Commands
+```bash
+# Check service health
+curl http://localhost:8000/health
+
+# Test Firebase connection
+curl http://localhost:8000/firebase-status
+
+# View logs
+tail -f app.log
+```
+
+## 🔄 Migration from Multi-Salon
+
+If upgrading from the old multi-salon version:
+
+1. **Backup your data**
+2. **Run the new single salon version**
+3. **Update environment variables**
+4. **Test the booking flow**
+
+The system automatically migrates to single salon mode.
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Submit a pull request
+4. Test thoroughly
+5. Submit a pull request
 
-## 📞 Support
+## 📄 License
 
-If you encounter any issues or need help setting up the bot, please create an issue in the repository. 
+MIT License - see LICENSE file for details.
+
+## 🆘 Support
+
+- **GitHub Issues**: Report bugs and request features
+- **Documentation**: Check the guides in `/docs`
+- **Discord**: Join our community (link in repo)
+
+---
+
+**🎉 Built with ❤️ for salon owners who want to modernize their booking system!** 

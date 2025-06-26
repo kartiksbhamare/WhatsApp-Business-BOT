@@ -1,6 +1,6 @@
 [build]
 # Force Railway to use Dockerfile instead of Nixpacks
-builder = "dockerfile"
+builder = "nixpacks"
 dockerfilePath = "Dockerfile"
 
 [deploy]
@@ -9,7 +9,7 @@ startCommand = "./start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
+restartPolicyMaxRetries = 10
 
 # Force rebuild - Updated with critical fixes
 # Timestamp: 2024-12-19 - WhatsApp Web Client and Firebase fixes applied
@@ -24,6 +24,19 @@ NIXPACKS_NO_DEFAULT_CACHE_DIRECTORIES = "1"
 
 [environments.production.variables]
 NODE_ENV = "production"
-ACTIVE_SALON = "salon_a"
-QR_ONLY_MODE = "true"
-PYTHON_VERSION = "3.11" 
+SALON_NAME = "Beauty Salon"
+RAILWAY_ENVIRONMENT = "true"
+PUPPETEER_EXECUTABLE_PATH = "/usr/bin/google-chrome-stable"
+
+[[services]]
+name = "whatsapp-booking-bot"
+
+[services.source]
+repo = "kartiksbhamare/WhatsApp-Business-BOT"
+branch = "main"
+
+[services.variables]
+NODE_ENV = "production"
+SALON_NAME = "Beauty Salon"
+RAILWAY_ENVIRONMENT = "true"
+PUPPETEER_EXECUTABLE_PATH = "/usr/bin/google-chrome-stable" 
