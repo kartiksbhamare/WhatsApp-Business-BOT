@@ -1,3 +1,12 @@
+from app.services.firestore_simple import (
+    init_default_data,
+    get_all_services,
+    get_all_barbers,
+    get_service,
+    get_barbers_for_service,
+    get_available_slots,
+    book_slot
+)
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse

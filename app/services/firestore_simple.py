@@ -4,9 +4,41 @@ import logging
 import requests
 from datetime import datetime, timedelta
 from typing import Dict, Optional, List, Any
+from pydantic import BaseModel
 
 from app.config import get_settings
-from app.models.services import Service, Barber, Booking
+
+# Define models inline since we removed the separate models file
+class Service(BaseModel):
+    """Service model"""
+    id: str
+    name: str
+    duration: int  # in minutes
+    price: float
+    description: str = ""
+
+class Barber(BaseModel):
+    """Barber model"""
+    name: str
+    email: str = ""
+    services: List[str] = []  # List of service IDs
+    working_days: List[str] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+    specialties: List[str] = []
+    experience_years: int = 0
+
+class Booking(BaseModel):
+    """Booking model"""
+    booking_id: str
+    service_id: str
+    service_name: str
+    barber_name: str
+    phone: str
+    contact_name: str
+    date: str  # YYYY-MM-DD format
+    time_slot: str
+    status: str = "confirmed"
+    created_at: str
+    source: str = "whatsapp"
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
