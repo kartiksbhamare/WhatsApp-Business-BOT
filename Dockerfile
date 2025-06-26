@@ -61,5 +61,5 @@ EXPOSE ${WHATSAPP_PORT}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${BACKEND_PORT:-8000}/health || exit 1
 
-# Default command (can be overridden in docker-compose)
-CMD ["node", "whatsapp-simple.js"] 
+# Start the Python backend for Railway (Railway needs the backend for healthcheck)
+CMD ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
